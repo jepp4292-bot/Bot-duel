@@ -121,18 +121,31 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+
+# --- LISTE DES COGS À IGNORER AU CHARGEMENT ---
+# Mettez ici les noms de fichiers des cogs que vous voulez désactiver.
+# Parfait pour mettre de côté des fonctionnalités sans les supprimer.
+cogs_desactives = [
+    "combat.py",  # Vous l'aviez déjà, on le met ici pour tout centraliser
+    "gestion.py",    # <--- REMPLACEZ PAR LE VRAI NOM DE FICHIER
+    "admin.py",
+    "game_manager.py",
+    "nouveau.py"# <--- AJOUTEZ TOUS LES COGS DU JEU 1 ICI
+]
+# --- DÉMARRAGE DU BOT ET CHARGEMENT DES COGS ---
 # --- DÉMARRAGE DU BOT ET CHARGEMENT DES COGS ---
 async def main():
     async with bot:
         # Boucle pour charger tous les fichiers dans le dossier 'cogs'
         for filename in os.listdir('./cogs'):
-            if filename.endswith('.py') and filename != 'combat_engine_1v1.py':        
-                try:            
-                    await bot.load_extension(f'cogs.{filename[:-3]}')            
-                    print(f"✅ Cog '{filename}' chargé.")        
-                except Exception as e:            
+            # On vérifie que le fichier est un .py ET qu'il n'est PAS dans notre liste noire
+            if filename.endswith('.py') and filename not in cogs_desactives:
+                try:
+                    await bot.load_extension(f'cogs.{filename[:-3]}')
+                    print(f"✅ Cog '{filename}' chargé.")
+                except Exception as e:
                     print(f"❌ Erreur lors du chargement du cog '{filename}': {e}")
-        
+
         await bot.start(TOKEN)
         
 app = Flask('')
