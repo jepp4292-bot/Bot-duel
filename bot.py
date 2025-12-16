@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 import json
 import asyncio
+from flask import Flask
+from threading import Thread
 
 # --- CONFIGURATION ---
 load_dotenv()
@@ -132,6 +134,16 @@ async def main():
                     print(f"❌ Erreur lors du chargement du cog '{filename}': {e}")
         
         await bot.start(TOKEN)
+        
+app = Flask('')
+@app.route('/')
+def home():    
+    return "Je suis en vie !"
+def run():  
+    app.run(host='0.0.0.0',port=8080)
+def keep_alive():    
+    t = Thread(target=run)    
+    t.start()
 
 if __name__ == "__main__":
     # Initialisation des pouvoirs par défaut (gardé ici car modifie les données globales avant le lancement)
@@ -191,4 +203,5 @@ if __name__ == "__main__":
     
     save_data()    
     print("Catalogues par défaut vérifiés et sauvegardés.")
+    keep_alive()
     asyncio.run(main())
