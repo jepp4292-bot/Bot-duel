@@ -139,13 +139,15 @@ app = Flask('')
 @app.route('/')
 def home():    
     return "Je suis en vie !"
-def run():  
+def run_flask():  
     app.run(host='0.0.0.0',port=8080)
 def keep_alive():    
     t = Thread(target=run)    
     t.start()
 
 if __name__ == "__main__":
+    flask_thread = Thread(target=run_flask)        
+    flask_thread.start()
     # Initialisation des pouvoirs par défaut (gardé ici car modifie les données globales avant le lancement)
     if "Frénésie" not in bot.catalogue_de_pouvoirs: bot.catalogue_de_pouvoirs["Frénésie"] = {"nom": "Frénésie", "description": "Le personnage attaque une fois de plus.", "activation": 45}
     if "Don" not in bot.catalogue_de_pouvoirs: bot.catalogue_de_pouvoirs["Don"] = {"nom": "Don", "description": "Soigne de 25% des PV max du lanceur un allié en réserve ayant le moins de PV.", "activation": 75}
