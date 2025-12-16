@@ -1,0 +1,261 @@
+{
+    "catalogue": {
+        "Le Parieur": {
+            "nom": "Le Parieur",
+            "niveau": 1,
+            "attaque": 10,
+            "pv": 30,
+            "xp": 0,
+            "capacite_unique": "Lancé de pièce",
+            "description_capacite": "Au début de son tour, lance une pièce. s'il tombe sur pile : n'attaque pas ce tour, s'il tombe sur face : inflige des dégâts bruts"
+        },
+        "La Samourai": {
+            "nom": "La Samourai",
+            "niveau": 1,
+            "attaque": 10,
+            "pv": 30,
+            "xp": 0,
+            "capacite_unique": "Voie du guerrier",
+            "description_capacite": "A chaque  fois qu'elle subit des dégâts, elle obtient de l'armure. Si son armure parvient à bloquer tous les dégâts d'une attaque, elle perd toute son armure."
+        },
+        "La Nécromancienne": {
+            "nom": "La Nécromancienne",
+            "niveau": 1,
+            "attaque": 10,
+            "pv": 30,
+            "xp": 0,
+            "capacite_unique": "Zombification",
+            "description_capacite": "Une fois morte, il y a une chance qu'elle revienne à la vie au début de chaque tour de ses coéquipiers mais en mode zombie. Sous cette forme elle possède la moitié de ses pv max et ne peux pas utiliser de pouvoirs."
+        },
+        "Le Robot": {
+            "nom": "Le Robot",
+            "niveau": 1,
+            "attaque": 10,
+            "pv": 30,
+            "xp": 0,
+            "capacite_unique": "Réparations d'urgence",
+            "description_capacite": "Quand il tombe sous 50% de ses pv max, il arrête d'agir et se soigne de 25% de ses pv max à chaque tour pendant 3 tours. Le changement ne peut pas s'effectuer pendant ces 3 tours. Il regagne sa capacité seulement s'il revient."
+        },
+        "La Qilin": {
+            "nom": "La Qilin",
+            "niveau": 1,
+            "attaque": 10,
+            "pv": 30,
+            "xp": 0,
+            "capacite_unique": "Présence rassurante",
+            "description_capacite": "Tant qu'elle est en vie, tous les personnages alliés se soignent de 10% des pv max de La Qilin au début de leur tour."
+        }
+    },
+    "inventaires": {
+        "195232317114023937": {
+            "personnages": [
+                {
+                    "nom": "Le Parieur",
+                    "niveau": 1,
+                    "attaque": 10,
+                    "pv": 30,
+                    "xp": 0,
+                    "capacite_unique": "Lancé de pièce",
+                    "description_capacite": "Au début de son tour, lance une pièce. s'il tombe sur pile : n'attaque pas ce tour, s'il tombe sur face : inflige des dégâts bruts"
+                },
+                {
+                    "nom": "La Samourai",
+                    "niveau": 1,
+                    "attaque": 10,
+                    "pv": 30,
+                    "xp": 0,
+                    "capacite_unique": "Voie du guerrier",
+                    "description_capacite": "A chaque  fois qu'elle subit des dégâts, elle obtient de l'armure. Si son armure parvient à bloquer tous les dégâts d'une attaque, elle perd toute son armure."
+                },
+                {
+                    "nom": "La Qilin",
+                    "niveau": 1,
+                    "attaque": 10,
+                    "pv": 30,
+                    "xp": 0,
+                    "capacite_unique": "Présence rassurante",
+                    "description_capacite": "Tant qu'elle est en vie, tous les personnages alliés se soignent de 10% des pv max de La Qilin au début de leur tour."
+                },
+                {
+                    "nom": "La Nécromancienne",
+                    "niveau": 1,
+                    "attaque": 10,
+                    "pv": 30,
+                    "xp": 0,
+                    "capacite_unique": "Zombification",
+                    "description_capacite": "Une fois morte, il y a une chance qu'elle revienne à la vie au début de chaque tour de ses coéquipiers mais en mode zombie. Sous cette forme elle possède la moitié de ses pv max et ne peux pas utiliser de pouvoirs."
+                },
+                {
+                    "nom": "Le Robot",
+                    "niveau": 1,
+                    "attaque": 10,
+                    "pv": 30,
+                    "xp": 0,
+                    "capacite_unique": "Réparations d'urgence",
+                    "description_capacite": "Quand il tombe sous 50% de ses pv max, il arrête d'agir et se soigne de 25% de ses pv max à chaque tour pendant 3 tours. Le changement ne peut pas s'effectuer pendant ces 3 tours. Il regagne sa capacité seulement s'il revient."
+                }
+            ],
+            "reserve_combat": [
+                null,
+                null,
+                null
+            ],
+            "pouvoirs": [],
+            "equipements": []
+        },
+        "1179516534289334344": {
+            "personnages": [],
+            "reserve_combat": [
+                null,
+                null,
+                null
+            ],
+            "pouvoirs": [],
+            "equipements": []
+        }
+    },
+    "catalogue_pouvoirs": {
+        "Frénésie": {
+            "nom": "Frénésie",
+            "description": "Le personnage attaque une fois de plus.",
+            "activation": 45
+        },
+        "Don": {
+            "nom": "Don",
+            "description": "Soigne de 25% des PV max du lanceur un allié en réserve ayant le moins de PV.",
+            "activation": 75
+        },
+        "Le Poulet": {
+            "nom": "Le Poulet",
+            "description": "Invoque un poulet qui tank les prochains dégâts.",
+            "activation": 50
+        },
+        "Bourbier": {
+            "nom": "Bourbier",
+            "description": "Empêche l'adversaire de jouer son prochain tour.",
+            "activation": 30
+        },
+        "Prescience": {
+            "nom": "Prescience",
+            "description": "Inflige des dégâts après 10 tours.",
+            "activation": 25
+        },
+        "Peur bleu": {
+            "nom": "Peur bleu",
+            "description": "Empêche l'adversaire de changer de personnage à son prochain tour.",
+            "activation": 65
+        },
+        "Rugissement primal": {
+            "nom": "Rugissement primal",
+            "description": "Force l'adversaire à changer son personnage actif avec un autre, choisi aléatoirement dans sa réserve.",
+            "activation": 40
+        },
+        "Bouclier magique": {
+            "nom": "Bouclier magique",
+            "description": "Protège toute l'équipe des effets et dégâts des pouvoirs adverses jusqu'à votre prochain tour.",
+            "activation": 30
+        },
+        "Combo": {
+            "nom": "Combo",
+            "description": "Inflige des dégâts basés sur le nombre de pouvoirs activés avant lui ce tour (25%/75%/150%).",
+            "activation": 35
+        },
+        "Bombardement": {
+            "nom": "Bombardement",
+            "description": "Inflige 50% de l'attaque aux adversaires en réserve en ignorant toutes les protections. Le lanceur saute son prochain tour.",
+            "activation": 20
+        },
+        "Pile ou Face": {
+            "nom": "Pile ou Face",
+            "description": "Lance une pièce : si c'est face, inflige son attaque en dégâts bruts. Si c'est pile, subit son attaque en dégâts bruts.",
+            "activation": 25
+        },
+        "Armure": {
+            "nom": "Armure",
+            "description": "Le lanceur obtient 3 points d'armure.",
+            "activation": 25
+        },
+        "Batteries d'urgences": {
+            "nom": "Batteries d'urgences",
+            "description": "Le lanceur se soigne de 25% de ses PV max.",
+            "activation": 25
+        },
+        "Nécromancie": {
+            "nom": "Nécromancie",
+            "description": "Invoque un zombie qui combat à votre place. Le lanceur devient inactif.",
+            "activation": 25
+        },
+        "Bénédiction": {
+            "nom": "Bénédiction",
+            "description": "Soigne tous les personnages vivants et en réserve de 20% des PV max du lanceur.",
+            "activation": 25
+        },
+        "Chaos": {
+            "nom": "Chaos",
+            "description": "Active un pouvoir aléatoire du jeu. Son pourcentage d'activation change à chaque tour.",
+            "activation": 0
+        },
+        "Poison": {
+            "nom": "Poison",
+            "description": "Empoisonne l'adversaire, lui infligeant 1 dégât par charge au début de son tour. Cumulable.",
+            "activation": 30
+        },
+        "Elan de puissance": {
+            "nom": "Elan de puissance",
+            "description": "Augmente l'attaque de 5 pendant 5 tours. Réactiver le pouvoir réduit la durée de 1 mais augmente le bonus de 2.",
+            "activation": 20
+        },
+        "Talon d'Achille": {
+            "nom": "Talon d'Achille",
+            "description": "Les prochains dégâts infligés par l'équipe ignorent toutes les défenses (armure, poulets, zombies).",
+            "activation": 55
+        },
+        "Mimétisme": {
+            "nom": "Mimétisme",
+            "description": "Copie le dernier pouvoir activé par l'adversaire.",
+            "activation": 45
+        }
+    },
+    "catalogue_equipements": {
+        "Tempo": {
+            "nom": "Tempo",
+            "description": "Donne 2 d'armure quand le personnage apparaît et permet de jouer deux fois si aucun dégât n'est subi lors du tour adverse."
+        },
+        "Grimoire interdit": {
+            "nom": "Grimoire interdit",
+            "description": "Réduit les PV max de 75% et augmente les chances des pouvoirs à 100% pendant 3 tours."
+        },
+        "Baguette explosive": {
+            "nom": "Baguette explosive",
+            "description": "Donne les statuts 'Coup Critique' et 'Chanceux' à son porteur."
+        },
+        "Côte épineuse": {
+            "nom": "Côte épineuse",
+            "description": "Renvoie 50% des dégâts subis à l'attaquant (ne fonctionne pas contre le poison ou le Talon d'Achille)."
+        },
+        "Hachoir": {
+            "nom": "Hachoir",
+            "description": "Exécute l'ennemi en dessous dee 25% de ses pv max"
+        },
+        "La Couronne": {
+            "nom": "La Couronne",
+            "description": "La Couronne est unique ! Respectez là comme un trône précieux"
+        },
+        "Bandeau rouge": {
+            "nom": "Bandeau rouge",
+            "description": "Survit pour un tour lorsqu'il doit mourir"
+        },
+        "Lance-bouclier": {
+            "nom": "Lance-bouclier",
+            "description": "Donne +5 en attaque de base et +5 aux PV max."
+        },
+        "Cape magique": {
+            "nom": "Cape magique",
+            "description": "Bloque les 10 prochains pouvoirs adverses visant le porteur. Activer 'Bouclier magique' avec la cape déclenche une attaque bonus."
+        },
+        "Pierre du changement": {
+            "nom": "Pierre du changement",
+            "description": "Chaque fois qu'il quitte le terrain, gagne +1 aux dégâts."
+        }
+    }
+}

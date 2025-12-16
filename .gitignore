@@ -1,0 +1,9 @@
+# Fichier pour les secrets, à ne JAMAIS publier
+.env
+
+# Dossier de l'environnement virtuel Python
+venv/
+
+# Fichiers cache de Python
+__pycache__/
+*.pyc

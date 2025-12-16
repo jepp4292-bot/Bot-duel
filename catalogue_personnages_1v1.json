@@ -1,0 +1,366 @@
+{
+    "Monstre foyer": {
+        "nom": "Monstre foyer",
+        "cout": 8,
+        "pv": 10,
+        "pv_max": 10,
+        "attaque": 2,
+        "capacite": {
+            "nom": "Doux foyer",
+            "cout": 4,
+            "description": "Ce gentil monstre sort ses cookies et son chocolat chaud pour soigner complètement tous ses amis (mais oublie d'en prendre pour lui-même)."
+        }
+    },
+    "Mage des nuages": {
+        "nom": "Mage des nuages",
+        "cout": 6,
+        "pv": 6,
+        "pv_max": 6,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Dans les nuages",
+            "cout": 1,
+            "description": "Envoie un allié faire un tour sur un nuage moelleux. Il est intouchable mais l'adversaire, frustré, attaque directement vos HP à la place."
+        }
+    },
+    "Chasseuse de prime": {
+        "nom": "Chasseuse de prime",
+        "cout": 3,
+        "pv": 5,
+        "pv_max": 5,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Cible",
+            "cout": 3,
+            "description": "Colle une affiche 'WANTED' sur le dos de sa prochaine cible. Un personnage 'Recherché' rapporte 2 PR bonus quand il est vaincu. La paperasse paie bien !"
+        }
+    },
+    "Oncle ben": {
+        "nom": "Oncle ben",
+        "cout": 5,
+        "pv": 4,
+        "pv_max": 4,
+        "attaque": 7,
+        "capacite": {
+            "nom": "Bipolaire",
+            "cout": 2,
+            "description": "Change radicalement d'humeur et inverse ses PV et son Attaque. 'Un grand pouvoir implique de grandes sautes d'humeur.'"
+        }
+    },
+    "Renarde": {
+        "nom": "Renarde",
+        "cout": 6,
+        "pv": 8,
+        "pv_max": 8,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Attaque surprise",
+            "cout": 3,
+            "description": "Prépare une embuscade parfaite ! Attaque en premier au prochain combat avec le double de puissance. 'Surprise, motherfoxer!'"
+        }
+    },
+    "Maitre de l'arêne": {        
+        "nom": "Maitre de l'arêne",        
+        "cout": 8,        
+        "pv": 7,        
+        "pv_max": 7,        
+        "attaque": 7,        
+        "capacite": {            
+            "nom": "Repos du héros",            
+            "cout": 2,            
+            "description": "Prend une pause bien méritée et récupère 3 PV. 'Même les champions ont besoin d'un bon sandwich entre deux rounds.'"
+        }  
+    },
+    "Robot radio": {        
+        "nom": "Robot radio",        
+        "cout": 2,        
+        "pv": 5,        
+        "pv_max": 5,        
+        "attaque": 1,        
+        "capacite": {            
+            "nom": "Musique de combat",            
+            "cout": 5,            
+            "description": "Balance une playlist épique qui booste l'attaque de toute l'équipe de +1. 'C'est l'heure du boost musical!'"
+        }  
+    },
+    "Pyromane": {        
+        "nom": "Pyromane",        
+        "cout": 6,        
+        "pv": 5,        
+        "pv_max": 5,        
+        "attaque": 5,        
+        "capacite": {            
+            "nom": "Boule de feu",            
+            "cout": 5,            
+            "description": "Prépare une boule de feu dévastatrice qui inflige 15 points de dégâts directs à l'adversaire. 'Je ne suis pas pyromane, j'ai juste une relation passionnée avec le feu!'"
+        } 
+    },
+    "Paresseuse": {                
+        "nom": "Paresseuse",                
+        "cout": 3,                
+        "pv": 3,                
+        "pv_max": 3,                
+        "attaque": 3,                
+        "capacite": {                        
+            "nom": "Petit effort",                        
+            "cout": 1,                        
+            "description": "Fait un effort surhumain pour rester éveillée pendant un combat. Elle est invulnérable mais disparaît après, épuisée par tant d'activité."
+        } 
+    },    
+    "Chevalier coton": {                
+        "nom": "Chevalier coton",                
+        "cout": 2,                
+        "pv": 6,                
+        "pv_max": 6,                
+        "attaque": 2,                
+        "capacite": {                        
+            "nom": "Bouclier coton",                        
+            "cout": 4,                        
+            "description": "Déploie son bouclier en peluche qui réduit tous les dégâts subis à 1. 'Doux mais efficace, comme ma grand-mère!'"
+        }    
+    },
+    "Artiste": {        
+        "nom": "Artiste",        
+        "cout": 6,        
+        "pv": 6,        
+        "pv_max": 6,        
+        "attaque": 3,        
+        "capacite": {            
+            "nom": "Oeuvre d'art",            
+            "cout": 4,            
+            "description": "Crée une œuvre au choix: Art abstrait (attaque bonus) ou Art contemporain (les dégâts soignent vos HP). 'L'art est une arme, parfois littéralement.'"
+        }
+    },
+    "Cape guerrière": {        
+        "nom": "Cape guerrière",        
+        "cout": 5,        
+        "pv": 4,        
+        "pv_max": 4,        
+        "attaque": 4,        
+        "capacite": {            
+            "nom": "Revêtement",            
+            "cout": 5,            
+            "description": "S'accroche à un allié et lui transmet sa puissance. 'Pas tous les héros portent une cape... mais celui-ci en EST une!'"
+        }
+    },
+    "Garçon parapluie": {
+        "nom": "Garçon parapluie",
+        "cout": 8,
+        "pv": 1,
+        "pv_max": 1,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Pluie battante",
+            "cout": 1,
+            "description": "Transforme tous les dégâts subis en PR lors du prochain combat. 'Quand la vie vous donne des gouttes de pluie, faites-en des points de ressource!'"
+        }
+    },
+    "Sumo Cyborg": {
+        "nom": "Sumo Cyborg",
+        "cout": 5,
+        "pv": 4,
+        "pv_max": 4,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Contre-attaque",
+            "cout": 8,
+            "description": "Renvoie tous les dégâts à l'attaquant lors du prochain combat. 'Ce qui ne me tue pas... te tue toi!'"
+        }
+    },
+    "Sapin de Noël": {
+        "nom": "Sapin de Noël",
+        "cout": 4,
+        "pv": 2,
+        "pv_max": 2,
+        "attaque": 5,
+        "capacite": {
+            "nom": "Souvenir inoubliable",
+            "cout": 3,
+            "description": "Donne le statut 'Malédiction' à l'adversaire, l'empêchant d'utiliser sa capacité. 'Comme ce pull offert par tante Gertrude que tu ne peux pas refuser de porter.'"
+        }
+    },
+    "Fourmi chimère": {
+        "nom": "Fourmi chimère",
+        "cout": 2,
+        "pv": 2,
+        "pv_max": 2,
+        "attaque": 2,
+        "capacite": {
+            "nom": "Evolution",
+            "cout": 2,
+            "description": "Invoque une fourmi chimère encore plus forte (+1 PV et +1 ATQ). 'Mitose améliorée: deux fourmis valent mieux qu'une!'"
+        }
+    },
+    "Petit fantôme": {
+        "nom": "Petit fantôme",
+        "cout": 1,
+        "pv": 3,
+        "pv_max": 3,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Gros câlin",
+            "cout": 2,
+            "description": "S'il meurt, envoûte son tueur et réduit son attaque à 1. 'Je reviendrai te hanter... et ruiner ton potentiel offensif!'"
+        }
+    },
+    "Cheffe néophyte": {
+        "nom": "Cheffe néophyte",
+        "cout": 4,
+        "pv": 3,
+        "pv_max": 3,
+        "attaque": 5,
+        "capacite": {
+            "nom": "Garde du corps",
+            "cout": 3,
+            "description": "Recrute un garde du corps qui bloque une attaque. 'Pas besoin d'être expérimentée quand on a des larbins pour prendre les coups à sa place!'"
+        }
+    },
+    "Tempête": {
+        "nom": "Tempête",
+        "cout": 4,
+        "pv": 4,
+        "pv_max": 4,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Bourrasque",
+            "cout": 3,
+            "description": "Souffle le personnage adverse et le remplace par le plus faible de l'inventaire. 'Je vais souffler, souffler, et ton meilleur combattant s'envoler!'"
+        }
+    },
+    "Gros bourdon": {
+        "nom": "Gros bourdon",
+        "cout": 5,
+        "pv": 6,
+        "pv_max": 6,
+        "attaque": 5,
+        "capacite": {
+            "nom": "Bourdonnement",
+            "cout": 7,
+            "description": "Vole 3 PR à l'adversaire pour la prochaine phase. 'Bzzzz! Ce n'est pas du vol, c'est juste un emprunt avec intérêts négatifs!'"
+        }
+    },
+    "Potion vivante": {
+        "nom": "Potion vivante",
+        "cout": 1,
+        "pv": 1,
+        "pv_max": 1,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Soin rapide",
+            "cout": 0,
+            "description": "Transforme tous vos PR en HP (x2) mais perd 1 PV. 'Buvez-moi... mais pas trop vite, je suis vivante et j'ai le vertige!'"
+        }
+    },
+    "Mini Hercule": {
+        "nom": "Mini Hercule",
+        "cout": 3,
+        "pv": 1,
+        "pv_max": 1,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Entrainement",
+            "cout": 4,
+            "description": "Gagne +3 en attaque. 'Pas besoin d'être grand pour avoir de gros biceps! Un jour, je serai aussi fort que mon cousin... mais en plus petit!'"
+        }
+    },
+    "Moine": {
+        "nom": "Moine",
+        "cout": 3,
+        "pv": 4,
+        "pv_max": 4,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Esprit robuste",
+            "cout": 0,
+            "description": "Gagne +5 PR et médite directement sur le terrain, déclarant le joueur prêt pour la bataille. 'Pas besoin de réfléchir, j'ai déjà atteint l'illumination... et le bouton prêt!'"
+        }
+    },
+        "Couple": {
+        "nom": "Couple",
+        "cout": 7,
+        "pv": 7,
+        "pv_max": 7,
+        "attaque": 4,
+        "capacite": {
+            "nom": "Inséparable",
+            "cout": 2,
+            "description": "Se sépare en 'Homme' et 'Femme', deux personnages de 5 PV et 5 ATQ sans capacité. 'Ensemble dans la vie, séparés dans la bataille... mais toujours deux fois plus efficaces!'"
+        }
+    },
+    "Dame champis": {
+    "nom": "Dame champis",
+    "cout": 4,
+    "pv": 5,
+    "pv_max": 5,
+    "attaque": 2,
+    "capacite": {
+        "nom": "Spores",
+        "cout": 1,
+        "description": "Prépare une nuée de spores toxiques qui empoisonneront tous les personnages adverses au prochain combat. 'Un nuage de spores par jour éloigne l'adversaire pour toujours!'"
+    }
+},
+    "Vieux croulant": {
+        "nom": "Vieux croulant",
+        "cout": 2,
+        "pv": 4,
+        "pv_max": 4,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Monologue ennuyeux",
+            "cout": 2,
+            "description": "Prépare un discours si ennuyeux que lors du prochain combat, personne n'attaquera et toutes les capacités seront annulées. 'Dans mon temps, les duels se réglaient autour d'une partie de belote, pas avec ces cartes bizarres...'"
+        }
+    },
+
+    "Programme":{
+    "nom": "Programme",
+    "cout": 7,
+    "pv": 5,
+    "pv_max": 5,
+    "attaque": 5,
+    "capacite": {
+        "nom": "Piratage",
+        "cout": 4,
+        "description": "Lance une cyberattaque ! Au début du prochain tour, vous pourrez supprimer définitivement un personnage de l'inventaire adverse. 'Félicitations, vous avez gagné un voyage... vers la corbeille !'"
+    }
+    },
+        "Autel vivant": {
+        "nom": "Autel vivant",
+        "cout": 7,
+        "pv": 20,
+        "pv_max": 20,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Prière",
+            "cout": 1,
+            "description": "Invoque les pouvoirs divins pour purifier un allié de ses afflictions ! Dissipe un statut négatif au choix (Empoisonné, Malédiction ou Envoûté). 'La guérison par la foi, mais sans les frais de consultation !'"
+        }
+    },
+
+        "Petit bourdon": {
+        "nom": "Petit bourdon",
+        "cout": 1,
+        "pv": 1,
+        "pv_max": 1,
+        "attaque": 3,
+        "capacite": {
+            "nom": "Vol",
+            "cout": 1,
+            "description": "Prépare ses ailes pour un assaut aérien! Au prochain combat, ce petit insecte ignorera complètement le personnage adverse et attaquera directement les HP du joueur. 'Pourquoi s'embêter avec les gardes du corps quand on peut simplement voler au-dessus?'"
+        }
+    },
+    "Fouine": {
+        "nom": "Fouine",
+        "cout": 1,
+        "pv": 1,
+        "pv_max": 1,
+        "attaque": 1,
+        "capacite": {
+            "nom": "Nuisible",
+            "cout": 5,
+            "description": "Prépare un tour de passe-passe sournois! Au début du prochain combat, cette petite fouineuse échange sa place avec le personnage adverse, créant une confusion totale. 'Ton personnage est mon personnage, et mon personnage est... eh bien, bonne chance pour le récupérer!'"
+        }
+    }
+
+
+}

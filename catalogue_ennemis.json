@@ -1,0 +1,138 @@
+    {
+        "Robot Gardien": {
+            "nom": "Robot Gardien",
+            "pv": 60,
+            "attaque": 15,
+            "capacite_unique": "Robobarrière",
+            "description_capacite": "Le changement automatique de personnage est désactivé durant ce combat.",
+            "pouvoirs": [
+                {
+                    "nom": "Roboréparation",
+                    "activation": 30
+                },
+                null,
+                null
+            ]
+        },
+
+        "Robot épée": {
+            "nom": "Robot épée",
+            "pv": 30,
+            "attaque": 12,
+            "capacite_unique": "Assaut éclair",
+            "pouvoirs": [{
+                "nom": "Changement tactique",
+                "activation" : 25
+
+            }, null, null]
+        },
+        "Robot bouclier": {
+            "nom": "Robot bouclier",
+            "pv": 30,
+            "attaque": 8,
+            "capacite_unique": "Armure de secours",
+            "pouvoirs": [{
+                "nom": "Changement tactique",
+                "activation" : 25
+
+            }, null, null]
+        },
+        "Robot mage": {
+            "nom": "Robot mage",
+            "pv": 15,
+            "attaque": 5,
+            "capacite_unique": "Cristal robotique",
+            "pouvoirs": [{
+                "nom": "Changement tactique",
+                "activation" : 25
+
+            }, null, null]
+    },
+        "Dr. Change": {
+            "nom": "Dr. Change",
+            "pv": 45,
+            "attaque": 8,
+            "capacite_unique": "Expérimentation Continue",
+            "equipement": {
+                "nom": "Pierre du changement"
+            },
+            "pouvoirs": [
+                {
+                    "nom": "Catalyseur",
+                    "activation": 35
+                },
+                {
+                    "nom": "Robots expérimentaux",
+                    "activation": 80
+                },
+                null
+            ]
+        },
+
+        "Robot expérimental": {
+            "nom": "Robot expérimental",
+            "pv": 20,
+            "attaque": 5,
+            "capacite_unique": "Bon débarras",
+            "pouvoirs": [
+                null,
+                null,
+                null
+            ]
+        }
+
+        ,
+        "Blob noir": {
+            "nom": "Blob noir",
+            "pv": 40,
+            "attaque": 0,
+            "capacite_unique": "Toxines",
+            "description_capacite": "Renvoie 100% des dégâts subis à l'attaquant.",
+            "pouvoirs": [null, null, null]
+        },
+        "Entité 001": {
+            "nom": "Entité 001",
+            "pv": 50,
+            "attaque": 20,
+            "capacite_unique": "Rage interne",
+            "description_capacite": "Quand il est en dessous de 50% de ses PV max, il attaque deux fois.",
+            "pouvoirs": [null, null, null]
+        },
+
+
+        
+        "Dr. Change corrompu": {
+            "nom": "Dr. Change corrompu",
+            "pv": 60,
+            "attaque": 12,
+            "capacite_unique": "Corruption Amplifiée",
+            "description_capacite": "Sa pierre du changement est instable et bien plus puissante.",
+            "equipement": {
+                "nom": "Pierre du changement corrompu"
+            },
+            "pouvoirs": [
+                {
+                    "nom": "Catalyseur",
+                    "activation": 35
+                },
+                {
+                    "nom": "Robots expérimentaux noirs",
+                    "activation": 80
+                },
+                null
+            ]
+        },
+        "Robot expérimental noir": {
+            "nom": "Robot expérimental noir",
+            "pv": 25,
+            "attaque": 10,
+            "capacite_unique": "Bon débarras",
+            "pouvoirs": [
+                null,
+                null,
+                null
+            ]
+        }
+}
+    
+    
