@@ -4,7 +4,7 @@ from discord.ext import commands
 import asyncio
 import random
 import copy
-from .combat_engine_1v1 import CombatEngine
+from ._combat_engine_1v1 import CombatEngine
 # Après les autres imports
 from .ai_trainer import AITrainer
 # =====================================================================================
@@ -524,18 +524,7 @@ class PlayerDashboardView(discord.ui.View):
         # Payer le coût (qui peut être 0)
         self.player_state['pr'] -= actual_cost
 
-        # Mettre à jour le compteur et envoyer le message du passif
-        if 'passives' in self.player_state and 'maitre_capacites' in self.player_state['passives']:
-            if is_free_cast:
-                self.player_state['ability_usage_counter'] = 0
-                await interaction.followup.send("🧙 Votre passif **Maître des capacités** s'active ! Cette capacité est gratuite !", ephemeral=True)
-                passif_message_sent = True
-            else:
-                self.player_state['ability_usage_counter'] += 1
-                count = self.player_state['ability_usage_counter']
-                next_ability_msg = "La prochaine sera gratuite !" if count == 2 else ""
-                await interaction.followup.send(f"Utilisation de capacité {count}/2. {next_ability_msg}", ephemeral=True)
-                passif_message_sent = True
+        # Mettre à jour le compteur et envoyer le message du passi
 
         # --- FIN DE LA LOGIQUE CENTRALISÉE ---
 
@@ -854,7 +843,17 @@ class PlayerDashboardView(discord.ui.View):
                 if "statuts" not in char: char["statuts"] = []
                 if "Malicieux" not in char["statuts"]: char["statuts"].append("Malicieux")
                 await respond(f"🦝 **{char['nom']}** prépare un tour sournois !")
-
+                
+            if 'passives' in self.player_state and 'maitre_capacites' in self.player_state['passives']:
+                if is_free_cast:
+                    self.player_state['ability_usage_counter'] = 0
+                    await interaction.followup.send("🧙 Votre passif **Maître des capacités** s'active ! Cette capacité est gratuite !", ephemeral=True)
+                else:
+                    self.player_state['ability_usage_counter'] += 1
+                    count = self.player_state['ability_usage_counter']
+                    next_ability_msg = "La prochaine sera gratuite !" if count == 2 else ""
+                    await interaction.followup.send(f"Utilisation de capacité {count}/2. {next_ability_msg}", ephemeral=True)
+                
         finally:
             # IMPORTANT : Toujours mettre à jour le dashboard à la fin, quel que soit le chemin pris
             await asyncio.sleep(0.1)        
@@ -944,12 +943,206 @@ class Game1v1ManagerCog(commands.Cog):
         }
         
         self.ai = AITrainer(self.bot)
+
+    catalogue = app_commands.Group(name="catalogue", description="Affiche les catalogues du jeu 1v1.")
+
+    @catalogue.command(name="personnages", description="Affiche la liste de tous les personnages du mode 1v1.")
+    async def catalogue_personnages(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        catalogue = self.bot.catalogue_personnages_1v1
+        if not catalogue:
+            await interaction.followup.send("Le catalogue des personnages est actuellement vide.", ephemeral=True)
+            return
+
+        embeds = []
+        personnages_par_page = 5  # Nombre de personnages par page pour une bonne lisibilité
         
-        # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
+        # Trier le catalogue par coût pour une meilleure organisation
+        sorted_chars = sorted(catalogue.values(), key=lambda x: x['cout'])
+        
+        # Diviser la liste des personnages en "pages"
+        for i in range(0, len(sorted_chars), personnages_par_page):
+            chunk = sorted_chars[i:i + personnages_par_page]
+            embed = discord.Embed(
+                title=f"Catalogue des Personnages (Page {len(embeds) + 1})",
+                color=discord.Color.blue()
+            )
 
-    # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
+            for char in chunk:
+                nom = char.get('nom', 'N/A')
+                cout = char.get('cout', 'N/A')
+                pv = char.get('pv', 'N/A')
+                attaque = char.get('attaque', 'N/A')
+                
+                capacite_info = "Aucune capacité."
+                if 'capacite' in char:
+                    capa = char['capacite']
+                    capa_nom = capa.get('nom', 'N/A')
+                    capa_cout = capa.get('cout', 'N/A')
+                    capa_desc = capa.get('description', 'N/A')
+                    capacite_info = (
+                        f"**Capacité : {capa_nom} ({capa_cout} PR)**\n"
+                        f"*{capa_desc}*"
+                    )
+                
+                field_value = (
+                    f"**Coût :** {cout} PR | **PV :** {pv} | **ATQ :** {attaque}\n"
+                    f"{capacite_info}"
+                )
+                embed.add_field(name=f"--- {nom} ---", value=field_value, inline=False)
+            
+            embeds.append(embed)
 
-    # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
+        if not embeds:
+            await interaction.followup.send("Impossible de générer le catalogue.", ephemeral=True)
+            return
+            
+        view = PaginationView(interaction, embeds)
+        await interaction.followup.send(embed=embeds[0], view=view, ephemeral=True)
+
+
+    @catalogue.command(name="passifs", description="Affiche la liste de tous les passifs du mode 1v1.")
+    async def catalogue_passifs(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="Catalogue des Passifs",
+            description="Voici la liste de tous les passifs disponibles dans le mode 1v1.",
+            color=discord.Color.purple()
+        )
+
+        if not self.passives:
+            embed.description = "Aucun passif n'est actuellement configuré."
+        else:
+            for passive_id, passive_info in self.passives.items():
+                emoji = passive_info.get('emoji', '🔹')
+                name = passive_info.get('name', 'Passif Inconnu')
+                description = passive_info.get('description', 'Aucune description.')
+                embed.add_field(
+                    name=f"{emoji} {name}",
+                    value=f"*{description}*",
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    # --- FIN DU BLOC À AJOUTER ---
+
+    @app_commands.command(name="tutoriel", description="Affiche un guide interactif pour apprendre à jouer au mode 1v1.")
+    async def tutoriel(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        tuto_embeds = []
+
+        # Page 1: Bienvenue
+        embed1 = discord.Embed(
+            title="⚔️ Bienvenue dans le Duel 1v1 !",
+            description="Bonjour et bienvenue ! Ce guide va vous apprendre les bases pour devenir un maître du duel.",
+            color=discord.Color.green()
+        )
+        embed1.add_field(
+            name="🎯 L'Objectif du Jeu",
+            value="Le but est simple : **réduire les Points de Vie (HP) de votre adversaire de 50 à 0**.\nLe premier qui y arrive gagne la partie !",
+            inline=False
+        )
+        embed1.set_footer(text="Page 1/6 - Cliquez sur les boutons pour naviguer.")
+        tuto_embeds.append(embed1)
+
+        # Page 2: La Boucle de Jeu
+        embed2 = discord.Embed(
+            title="🔄 Les Deux Phases d'un Tour",
+            description="Chaque tour du jeu se déroule en deux phases distinctes.",
+            color=discord.Color.gold()
+        )
+        embed2.add_field(
+            name="1. Phase de Préparation",
+            value="C'est le moment de la stratégie ! Vous recevez des **Points de Ressource (PR)** et vous pouvez :\n- **Invoquer** de nouveaux personnages.\n- **Placer** un personnage sur le terrain.\n- **Utiliser** des capacités spéciales. \n Attention toutefois, à partir du tour 2, les personnages ont la fatigue d'invocation qui les empêchent de rejoindre le terrain dès leur invocation !",
+            inline=False
+        )
+        embed2.add_field(
+            name="2. Phase de Combat",
+            value="Une fois que les deux joueurs sont prêts, le combat se lance automatiquement. Les personnages sur le terrain s'affrontent jusqu'à la fin du round.",
+            inline=False
+        )
+        embed2.add_field(            
+            name="3. Le Rapport de Combat (L'Espionnage !)",            
+            value="Après chaque combat, vous recevrez un **rapport secret en message privé**. Il vous montrera l'inventaire et le terrain de votre adversaire, vous donnant des informations cruciales pour planifier votre prochain tour !",            
+            inline=False        )
+        embed2.set_footer(text="Page 2/6 - Le jeu alterne entre ces deux phases.")
+        tuto_embeds.append(embed2)
+
+        # Page 3: Les Concepts Clés
+        embed3 = discord.Embed(
+            title="💡 Les Concepts Essentiels",
+            description="Pour gagner, vous devez maîtriser ces quatre éléments.",
+            color=discord.Color.blue()
+        )
+        embed3.add_field(name="❤️ HP (Points de Vie)", value="Votre jauge de vie. Commence à 50. Si elle tombe à 0, c'est perdu !", inline=False)
+        embed3.add_field(name="🤔 PR (Points de Ressource)", value="Votre 'mana'. Vous en gagnez à chaque tour. Essentiel pour invoquer des personnages et utiliser leurs puissantes capacités.", inline=False)
+        embed3.add_field(name="📦 L'Inventaire", value="Votre 'main'. Vous avez 3 emplacements pour garder vos personnages en réserve avant de les envoyer au combat.", inline=False)
+        embed3.add_field(name=" battlefield Le Terrain", value="La zone de combat. Seul le personnage placé ici se battra. S'il n'y a personne, vos HP seront attaqués directement !", inline=False)
+        embed3.set_footer(text="Page 3/6 - Bien gérer ses PR est la clé de la victoire.")
+        tuto_embeds.append(embed3)
+
+        # Page 4: Déroulement d'un Tour
+        embed4 = discord.Embed(
+            title="📜 Votre Phase de Préparation",
+            description="Voici comment se déroule votre tour.",
+            color=discord.Color.light_grey()
+        )
+        embed4.add_field(name="Étape 1 : Invoquez", value="Cliquez sur un bouton `Invocation` dans un slot vide de votre inventaire pour dépenser des PR et obtenir de nouveaux combattants.", inline=False)
+        embed4.add_field(name="Étape 2 : Placez", value="Choisissez le meilleur personnage pour le combat à venir et placez-le sur le terrain.", inline=False)
+        embed4.add_field(name="Étape 3 : Utilisez des Capacités", value="Certains personnages ont des capacités. Utilisez-les pour prendre l'avantage avant même que le combat ne commence !", inline=False)
+        embed4.add_field(name="Étape 4 : Soyez Prêt", value="Une fois votre stratégie en place, cliquez sur le bouton `Prêt pour le Combat !` dans le salon du jeu.", inline=False)
+        embed4.set_footer(text="Page 4/6 - L'ordre de vos actions est crucial.")
+        tuto_embeds.append(embed4)
+
+        # Page 5: Les Passifs
+        embed5 = discord.Embed(
+            title="✨ Les Passifs : Des Atouts Uniques",
+            description="Les passifs sont des bonus très puissants qui peuvent renverser le cours d'une partie.",
+            color=discord.Color.purple()
+        )
+        embed5.add_field(
+            name="Comment les obtenir ?",
+            value="Au début des **tours 2 et 5**, le jeu vous proposera de choisir 1 passif parmi 3. Choisissez bien, car ce choix définira votre stratégie pour le reste de la partie !",
+            inline=False
+        )
+        embed5.add_field(
+            name="Consultez la liste",
+            value="Pour voir tous les passifs possibles, utilisez la commande `/catalogue passifs`.",
+            inline=False
+        )
+        embed5.set_footer(text="Page 5/6 - Un bon passif peut contrer la stratégie de votre adversaire.")
+        tuto_embeds.append(embed5)
+
+        # Page 6: Comment Démarrer
+        embed6 = discord.Embed(
+            title="▶️ Lancez votre Premier Duel !",
+            description="Vous avez toutes les cartes en main. Il est temps de vous lancer !",
+            color=discord.Color.red()
+        )
+        embed6.add_field(
+            name="La Commande Magique",
+            value="Pour défier un ami, utilisez la commande `/duel`.\nPar exemple : `/duel adversaire:@NomDeVotreAmi`",
+            inline=False
+        )
+        embed6.add_field(
+            name="Besoin d'un rappel ?",
+            value="Utilisez `/catalogue personnages` pour voir toutes les unités et préparez vos stratégies. Bonne chance !",
+            inline=False
+        )
+        embed6.set_footer(text="Page 6/6 - Que le meilleur stratège gagne !")
+        tuto_embeds.append(embed6)
+
+        # Utilisation de notre PaginationView
+        view = PaginationView(interaction, tuto_embeds)
+        await interaction.followup.send(embed=tuto_embeds[0], view=view, ephemeral=True)
+
+    # --- FIN DE LA NOUVELLE COMMANDE ---
+
+
+    # ... (le reste de votre code : duel, _start_new_duel, etc.) ...
+    # ... le reste de votre code (duel, _start_new_duel, etc.) ne change pas ...
 
     async def _handle_ai_preparation_turn(self, player_state, game_state):
         """
@@ -1776,6 +1969,42 @@ class PiratageTargetView(discord.ui.View):
             item.disabled = True
         await interaction.response.edit_message(content="Cible du piratage verrouillée !", view=self)
         self.stop()
+        
+        
+# --- NOUVELLE VUE : Pagination pour les Catalogues ---
+class PaginationView(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction, embeds: list):
+        super().__init__(timeout=300)  # 5 minutes avant que les boutons ne se désactivent
+        self.interaction = interaction
+        self.embeds = embeds
+        self.current_page = 0
+
+        # Mettre à jour l'état initial des boutons
+        self._update_buttons()
+
+    def _update_buttons(self):
+        # Le bouton "Précédent" est désactivé si on est sur la première page
+        self.children[0].disabled = self.current_page == 0
+        # Le bouton "Suivant" est désactivé si on est sur la dernière page
+        self.children[1].disabled = self.current_page == len(self.embeds) - 1
+
+        # Mettre à jour le label du bouton "Suivant" pour afficher le numéro de page
+        self.children[1].label = f"Page {self.current_page + 1}/{len(self.embeds)}"
+
+    @discord.ui.button(label="Précédent", style=discord.ButtonStyle.secondary, custom_id="prev_page")
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+
+    @discord.ui.button(label="Page 1/X", style=discord.ButtonStyle.primary, custom_id="next_page")
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < len(self.embeds) - 1:
+            self.current_page += 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+
 # Ne pas oublier la fonction setup à la fin du fichier
 async def setup(bot: commands.Bot):
     await bot.add_cog(Game1v1ManagerCog(bot))

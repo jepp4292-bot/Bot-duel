@@ -4,8 +4,6 @@ import os
 from dotenv import load_dotenv
 import json
 import asyncio
-from flask import Flask
-from threading import Thread
 
 # --- CONFIGURATION ---
 load_dotenv()
@@ -126,11 +124,7 @@ async def on_ready():
 # Mettez ici les noms de fichiers des cogs que vous voulez désactiver.
 # Parfait pour mettre de côté des fonctionnalités sans les supprimer.
 cogs_desactives = [
-    "combat.py",  # Vous l'aviez déjà, on le met ici pour tout centraliser
-    "gestion.py",    # <--- REMPLACEZ PAR LE VRAI NOM DE FICHIER
-    "admin.py",
-    "game_manager.py",
-    "nouveau.py"# <--- AJOUTEZ TOUS LES COGS DU JEU 1 ICI
+    # <--- AJOUTEZ TOUS LES COGS DU JEU 1 ICI
 ]
 # --- DÉMARRAGE DU BOT ET CHARGEMENT DES COGS ---
 # --- DÉMARRAGE DU BOT ET CHARGEMENT DES COGS ---
@@ -139,7 +133,7 @@ async def main():
         # Boucle pour charger tous les fichiers dans le dossier 'cogs'
         for filename in os.listdir('./cogs'):
             # On vérifie que le fichier est un .py ET qu'il n'est PAS dans notre liste noire
-            if filename.endswith('.py') and filename not in cogs_desactives:
+            if filename.endswith('.py') and not filename.startswith('_') and filename not in cogs_desactives:               
                 try:
                     await bot.load_extension(f'cogs.{filename[:-3]}')
                     print(f"✅ Cog '{filename}' chargé.")
@@ -148,19 +142,8 @@ async def main():
 
         await bot.start(TOKEN)
         
-app = Flask('')
-@app.route('/')
-def home():    
-    return "Je suis en vie !"
-def run_flask():  
-    app.run(host='0.0.0.0',port=8080)
-def keep_alive():    
-    t = Thread(target=run_flask)    
-    t.start()
 
 if __name__ == "__main__":
-    flask_thread = Thread(target=run_flask)        
-    flask_thread.start()
     # Initialisation des pouvoirs par défaut (gardé ici car modifie les données globales avant le lancement)
     if "Frénésie" not in bot.catalogue_de_pouvoirs: bot.catalogue_de_pouvoirs["Frénésie"] = {"nom": "Frénésie", "description": "Le personnage attaque une fois de plus.", "activation": 45}
     if "Don" not in bot.catalogue_de_pouvoirs: bot.catalogue_de_pouvoirs["Don"] = {"nom": "Don", "description": "Soigne de 25% des PV max du lanceur un allié en réserve ayant le moins de PV.", "activation": 75}
@@ -218,5 +201,4 @@ if __name__ == "__main__":
     
     save_data()    
     print("Catalogues par défaut vérifiés et sauvegardés.")
-    keep_alive()
     asyncio.run(main())
