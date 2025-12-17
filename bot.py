@@ -127,10 +127,10 @@ async def on_ready():
 # Parfait pour mettre de côté des fonctionnalités sans les supprimer.
 cogs_desactives = [
     
-    "gestion.py"
-    "combat.py"
-    "game_manager.py"
-    "admin.py"
+    "gestion.py",
+    "combat.py",
+    "game_manager.py",
+    "admin.py",
     "nouveau.py"
     # <--- AJOUTEZ TOUS LES COGS DU JEU 1 ICI
 ]
