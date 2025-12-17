@@ -124,6 +124,12 @@ async def on_ready():
 # Mettez ici les noms de fichiers des cogs que vous voulez désactiver.
 # Parfait pour mettre de côté des fonctionnalités sans les supprimer.
 cogs_desactives = [
+    
+    "gestion.py"
+    "combat.py"
+    "game_manager.py"
+    "admin.py"
+    "nouveau.py"
     # <--- AJOUTEZ TOUS LES COGS DU JEU 1 ICI
 ]
 # --- DÉMARRAGE DU BOT ET CHARGEMENT DES COGS ---
