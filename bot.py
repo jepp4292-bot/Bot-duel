@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import json
 import asyncio
 
+
+print("--- TEST DE DÉPLOIEMENT v3.0 - FLASK EST SUPPRIMÉ ---")
 # --- CONFIGURATION ---
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
