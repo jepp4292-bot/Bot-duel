@@ -591,7 +591,7 @@ class CombatEngine:
         winner_id = attack_order[0]    
         winner_state = self.game_state['players'][winner_id]        
         # Vérifier si le gagnant a le passif Vif    
-        if 'vif' in winner_state.get('passives', {}):        
+        '''if 'vif' in winner_state.get('passives', {}):        
             # Vérifier s'il aurait gagné de toute façon (sans le passif)        
             base_order_winner_id = self._determine_base_attack_order()[0]        
             if winner_id == base_order_winner_id:            
@@ -603,7 +603,7 @@ class CombatEngine:
                 # Mettre à jour l'embed pour montrer le résultat du bonus            
                 embed = self._create_combat_embed("Attaque bonus !")            
                 combat_message = await self.channel.send(embed=embed)            
-                await asyncio.sleep(4) # Pause pour que les joueurs voient l'attaque    # Affichage du message d'initiative (maintenant dynamique)    
+                await asyncio.sleep(4)''' # Pause pour que les joueurs voient l'attaque    # Affichage du message d'initiative (maintenant dynamique)    
         if reason == "passif":        
             self.log.append(f"⚡ **{winner_state['member'].display_name}** a l'initiative grâce à son passif **Vif** !")    
         else:        

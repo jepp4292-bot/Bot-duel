@@ -1678,7 +1678,7 @@ class Game1v1ManagerCog(commands.Cog):
                 dette_absolue = abs(p_state['dette'])
                 
                 # Calcul du prélèvement selon vos règles
-                prelevement_brut = round(dette_absolue * 0.40)
+                prelevement_brut = round(dette_absolue * 0.80)
                 prelevement_final = max(4, prelevement_brut) # Minimum de 4 PR
                 
                 # Si la dette est inférieure au prélèvement minimum, on prélève juste la dette
