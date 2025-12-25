@@ -1,11 +1,10 @@
 # cogs/ai_trainer.py
-import discord
+# cogs/ia_trainer.py
+
 import random
-import copy
-import asyncio
 
 class AITrainer:
-    """IA stratégique et adaptative pour les duels 1v1."""
+    """IA stratégique et adaptative pour les duels 1v1, basée sur des métadonnées (tags)."""
     
     def __init__(self, bot):
         self.bot = bot
@@ -20,295 +19,269 @@ class AITrainer:
         Le score va de 0 (sûr) à 100 (très dangereux).
         """
         player_hp = player_state['hp']
-        opponent_hp = opponent_state['hp']
-        player_pr = player_state['pr']
-        opponent_pr = opponent_state['pr']
-        
         danger_score = 0
         
         # Danger si les HP de l'IA sont bas
-        if player_hp < 15:
-            danger_score += 40
-        elif player_hp < 25:
-            danger_score += 20
+        if player_hp < 15: danger_score += 40
+        elif player_hp < 25: danger_score += 20
         
         # Danger si l'adversaire a une grosse avance en PR
-        if opponent_pr > player_pr + 5:
-            danger_score += 15
+        if opponent_state['pr'] > player_state['pr'] + 5: danger_score += 15
         
         # Danger si l'adversaire a un personnage puissant sur le terrain
         if opponent_state.get('terrain'):
             opponent_char = opponent_state['terrain']
-            # Un personnage avec plus de 6 d'attaque est une menace immédiate
-            if opponent_char['attaque'] > 6:
-                danger_score += 20
-            # Un personnage avec beaucoup de PV est difficile à tuer
-            if opponent_char.get('pv_max', opponent_char['pv']) > 10:
-                danger_score += 10
+            if opponent_char['attaque'] > 6: danger_score += 20
+            if opponent_char.get('pv_max', opponent_char['pv']) > 10: danger_score += 10
         
-        # Danger si l'adversaire a plus de personnages prêts au combat
+        # Danger si l'adversaire a plus de personnages
         player_chars_count = sum(1 for c in player_state['inventaire'] if c) + (1 if player_state['terrain'] else 0)
         opponent_chars_count = sum(1 for c in opponent_state['inventaire'] if c) + (1 if opponent_state['terrain'] else 0)
-        if opponent_chars_count > player_chars_count:
-            danger_score += 10
+        if opponent_chars_count > player_chars_count: danger_score += 10
             
         return min(danger_score, 100)
 
+    # === AMÉLIORATION MAJEURE : SCORING BASÉ SUR LES RÔLES ===
     def scorer_personnage(self, char, player_state, opponent_state, situation_danger):
         """
-        Donne un score de pertinence à un personnage en fonction du contexte du jeu.
-        Un score plus élevé signifie que le personnage est un meilleur choix à ce moment précis.
+        Donne un score de pertinence à un personnage en fonction de ses rôles et du contexte.
+        Cette méthode ne dépend plus des noms, mais des tags 'roles' que tu dois ajouter à tes personnages.
         """
         score = 0
-        
+        roles = char.get('roles', []) # On récupère les rôles du personnage (ex: ["tank", "support"])
+
         # Score de base basé sur les stats brutes
-        score += char.get('pv_max', char['pv']) * 2.5  # La survie est importante
-        score += char['attaque'] * 3.0  # Les dégâts sont la clé de la victoire
+        score += char.get('pv_max', char['pv']) * 2.5
+        score += char['attaque'] * 3.0
         
         # Bonus/Malus en fonction de la situation de danger
         if situation_danger > 60:  # Situation critique, besoin de défense
-            score += char.get('pv_max', char['pv']) * 2  # Priorité aux tanks
+            score += char.get('pv_max', char['pv']) * 2
         elif situation_danger < 30:  # Situation favorable, on pousse l'avantage
-            score += char['attaque'] * 4  # Priorité aux attaquants
+            score += char['attaque'] * 4
         
-        # Bonus spécifiques pour certains rôles clés
-        nom = char['nom']
-        
-        if nom in ["Monstre foyer", "Autel vivant", "Chevalier coton", "Paresseuse"]:  # Rôle de tank
+        # Bonus spécifiques basés sur les RÔLES (beaucoup plus flexible !)
+        if 'tank' in roles:
             if situation_danger > 50: score += 30
+            else: score += 10 # Un tank est toujours utile
         
-        if nom in ["Oncle ben", "Pyromane", "Mini Hercule", "Renarde", "Artiste"]:  # Rôle de DPS
+        if 'dps' in roles:
             if situation_danger < 40: score += 35
-        
-        if nom in ["Robot radio", "Mage des nuages", "Cape guerrière", "Garçon parapluie"]:  # Rôle de support/utilitaire
-            if len([c for c in player_state['inventaire'] if c]) > 1: # Plus utile si on a des alliés
-                score += 20
+            else: score += 15 # Les dégâts sont toujours bons à prendre
 
-        # Malus si le personnage est fatigué et ne peut pas être placé
+        if 'support' in roles:
+            # Un support est plus utile si on a déjà des alliés à buffer
+            if len([c for c in player_state['inventaire'] if c]) > 1:
+                score += 25
+        
+        if 'nuker' in roles: # Pour les personnages qui peuvent finir la partie
+            if opponent_state['hp'] < 20: score += 50 # Très haute priorité si l'ennemi est faible
+
+        # Malus si le personnage est fatigué et ne peut pas être placé ce tour-ci
         if "Fatigue d'invocation" in char.get("statuts", []):
-            score -= 100 # Très gros malus, on ne veut pas l'invoquer si on a besoin de le jouer tout de suite
+            score -= 100
 
         return score
     
     def evaluer_etat_adversaire(self, opponent_state):
         """Retourne une évaluation simple de l'état de l'adversaire."""
-        if opponent_state['hp'] <= 15:
-            return "FAIBLE"
-        if opponent_state['hp'] >= 40 and opponent_state['pr'] >= 8:
-            return "FORT"
+        if opponent_state['hp'] <= 15: return "FAIBLE"
+        if opponent_state['hp'] >= 40 and opponent_state['pr'] >= 8: return "FORT"
         return "NORMAL"
 
     # =====================================================================================
     # SECTION 2 : LOGIQUE DE DÉCISION
     # =====================================================================================
 
-    def choisir_passif(self, player_state, available_passives, game_state):
-        """Choisit un passif de manière stratégique en fonction du tour de jeu."""
-        tour = game_state['tour']
-        
-        # Au tour 5, on se prépare pour la fin de partie : la survie est clé.
-        if tour == 5:
-            priority = [
-                "second_chance", "volonte", "human_tide", "mode_facile", 
-                "vif", "promotion", "a_main_nue", "absenteism", "maitre_capacites", "pret"
-            ]
-        # Au début (tour 2), on veut construire un avantage.
-        else:
-            priority = [
-                "a_main_nue", "human_tide", "vif", "mode_facile",
-                "promotion", "maitre_capacites", "second_chance", "volonte",
-                "absenteism", "pret"
-            ]
-        
-        for passive_id in priority:
-            if passive_id in available_passives:
-                player_state['passives'][passive_id] = True
-                print(f"[IA LOG - Passif] L'IA a choisi : {passive_id} (Tour {tour})")
-                return
+    # === AMÉLIORATION : CHOIX DE PASSIF CONTEXTUEL ===
+    def choisir_passif(self, player_state, available_passives_ids, game_state):
+        """Choisit un passif en évaluant leur pertinence dans la situation actuelle."""
+        best_passive = None
+        best_score = -1
 
-    def generer_choix_invocation(self, player_state):
+        for passive_id in available_passives_ids:
+            score = 0
+            # Évaluer chaque passif disponible
+            if passive_id in ["second_chance", "volonte"]:
+                if player_state['hp'] < 25: score = 100 # Priorité absolue si bas en HP
+                else: score = 50
+            
+            if passive_id == "mode_facile":
+                score = 80 # Toujours un excellent choix pour l'économie
+            
+            if passive_id == "human_tide":
+                # Très fort si on a déjà beaucoup de personnages
+                if sum(1 for c in player_state['inventaire'] if c) >= 2: score = 90
+                else: score = 60
+            
+            if passive_id == "a_main_nue":
+                score = 75 # Bon passif polyvalent
+            
+            if passive_id == "vif":
+                score = 70
+            
+            if passive_id == "promotion":
+                # Excellent si on a des personnages chers en main
+                has_expensive_char = any(c['cout'] >= 6 for c in player_state['inventaire'] if c)
+                if has_expensive_char: score = 85
+                else: score = 40
+
+            if score > best_score:
+                best_score = score
+                best_passive = passive_id
+        
+        if best_passive:
+            player_state['passives'][best_passive] = True
+            print(f"[IA LOG - Passif] L'IA a choisi : {best_passive} (Score: {best_score}, Tour {game_state['tour']})")
+            return
+
+    def generer_choix_invocation(self, player_state, catalogue):
         """Génère 3 choix de personnages que l'IA peut s'offrir."""
-        available_chars = [
-            char for char in self.bot.catalogue_personnages_1v1.values()
-            if char['cout'] <= player_state['pr']
-        ]
+        available_chars = [char for char in catalogue.values() if char['cout'] <= player_state['pr']]
+        if not available_chars: return []
         
-        if not available_chars:
-            return []
-        
+        # On privilégie la diversité des coûts pour avoir plus d'options
         chars_by_cost = {}
         for char in available_chars:
             cost = char['cout']
-            if cost not in chars_by_cost:
-                chars_by_cost[cost] = []
+            if cost not in chars_by_cost: chars_by_cost[cost] = []
             chars_by_cost[cost].append(char)
         
         possible_costs = list(chars_by_cost.keys())
         num_choices = min(3, len(possible_costs))
         chosen_costs = random.sample(possible_costs, num_choices)
         
-        choices = [random.choice(chars_by_cost[cost]) for cost in chosen_costs]
-        return choices
+        return [random.choice(chars_by_cost[cost]) for cost in chosen_costs]
 
     def choisir_personnage_invocation(self, choices, player_state, opponent_state, game_state):
         """L'IA choisit le personnage le plus pertinent parmi les 3 options en utilisant le scoring."""
-        if not choices:
-            return None
+        if not choices: return None
         
         danger = self.analyser_situation(player_state, opponent_state)
         
-        best_char = None
-        best_score = -1
+        # Utilise la fonction de scoring améliorée pour trouver le meilleur personnage
+        best_char = max(choices, key=lambda char: self.scorer_personnage(char, player_state, opponent_state, danger))
         
-        for char in choices:
-            score = self.scorer_personnage(char, player_state, opponent_state, danger)
-            print(f"[IA DEBUG - Invocation] Évaluation de {char['nom']}: score {score:.2f} (Danger: {danger})")
-            
-            if score > best_score:
-                best_score = score
-                best_char = char
-        
-        print(f"[IA LOG - Invocation] L'IA a choisi d'invoquer {best_char['nom']} (Score: {best_score:.2f})")
+        score = self.scorer_personnage(best_char, player_state, opponent_state, danger)
+        print(f"[IA LOG - Invocation] L'IA a choisi d'invoquer {best_char['nom']} (Score: {score:.2f})")
         return best_char
 
     def placer_strategiquement(self, player_state, opponent_state, game_state):
-        """
-        Décide quel personnage placer sur le terrain.
-        Privilégie la défense en début de partie ou en cas de danger, sinon l'attaque.
-        """
-        placeable = [
-            char for char in player_state['inventaire']
-            if char and "Fatigue d'invocation" not in char.get("statuts", [])
-        ]
-        
-        if not placeable:
-            return False
+        """Décide quel personnage placer sur le terrain en se basant sur le meilleur score de pertinence."""
+        placeable = [char for char in player_state['inventaire'] if char and "Fatigue d'invocation" not in char.get("statuts", [])]
+        if not placeable: return False
         
         danger = self.analyser_situation(player_state, opponent_state)
-        tour = game_state['tour']
         
-        # Stratégie de sélection
-        if tour <= 2: # Début de partie, on veut un terrain solide
-            best_char_to_place = max(placeable, key=lambda c: c.get('pv_max', c['pv']))
-        elif danger > 50: # Si l'IA est en danger, elle place son meilleur tank
-            best_char_to_place = max(placeable, key=lambda c: c.get('pv_max', c['pv']))
-        else: # Sinon, elle place son meilleur attaquant
-            best_char_to_place = max(placeable, key=lambda c: c['attaque'])
+        # Sélectionne le meilleur personnage à placer en se basant sur le scoring global
+        best_char_to_place = max(placeable, key=lambda c: self.scorer_personnage(c, player_state, opponent_state, danger))
         
-        # Logique de placement/remplacement
         if player_state['terrain']:
             current_char = player_state['terrain']
-            # On ne remplace que si le nouveau personnage est significativement meilleur
             current_score = self.scorer_personnage(current_char, player_state, opponent_state, danger)
             new_score = self.scorer_personnage(best_char_to_place, player_state, opponent_state, danger)
             
-            if new_score > current_score + 20: # Le seuil de +20 évite les changements inutiles
+            # Le seuil de +20 évite les changements inutiles, c'est une excellente idée
+            if new_score > current_score + 20:
                 idx = player_state['inventaire'].index(best_char_to_place)
                 player_state['inventaire'][idx] = current_char
                 player_state['terrain'] = best_char_to_place
-                print(f"[IA LOG - Placement] Remplacement stratégique : {best_char_to_place['nom']} remplace {current_char['nom']}")
+                print(f"[IA LOG - Placement] Remplacement : {best_char_to_place['nom']} remplace {current_char['nom']}")
                 return True
-            return False # Pas de remplacement nécessaire
+            return False
         else:
-            player_state['inventaire'].remove(best_char_to_place)
+            idx = player_state['inventaire'].index(best_char_to_place)
+            player_state['inventaire'][idx] = None
             player_state['terrain'] = best_char_to_place
             print(f"[IA LOG - Placement] Placement initial : {best_char_to_place['nom']}")
             return True
-            player_state['has_placed_character'] = True
 
+    # === AMÉLIORATION MAJEURE : UTILISATION DE CAPACITÉ BASÉE SUR LES TAGS ===
+    # Dans ton fichier AITrainer
+
+# === AMÉLIORATION MAJEURE : UTILISATION DE CAPACITÉ BASÉE SUR LES TAGS ET LES PRÉREQUIS ===
     def utiliser_capacite_smart(self, player_state, opponent_state, game_state):
-        """Utilise une capacité de manière intelligente en évaluant la meilleure option."""
+        """
+        Utilise une capacité en évaluant ses tags, le contexte ET les prérequis de base.
+        """
         usable = []
-        for i, char in enumerate(player_state['inventaire']):
-            if char and "capacite" in char:
-                capacite = char['capacite']
-                complex_abilities = ["Dans les nuages", "Revêtement", "Oeuvre d'art", "Prière", "Esprit robuste"]
-                if capacite['nom'] not in complex_abilities and player_state['pr'] >= capacite['cout']:
-                    usable.append((i, char, capacite))
+        all_chars = [(i, char) for i, char in enumerate(player_state['inventaire'])]
+        if player_state['terrain']:
+            all_chars.append(("terrain", player_state['terrain']))
+
+        for slot, char in all_chars:
+            if char and "capacite" in char and player_state['pr'] >= char['capacite']['cout']:
+                usable.append((slot, char, char['capacite']))
         
-        if not usable:
-            return False
+        if not usable: return None
         
         danger = self.analyser_situation(player_state, opponent_state)
         opponent_status = self.evaluer_etat_adversaire(opponent_state)
         
         best_choice = None
-        best_priority = 0 # On n'active que si une capacité a une priorité > 0
-        
-        for i, char, capacite in usable:
+        best_priority = 10 # Seuil minimum pour agir
+
+        for slot, char, capacite in usable:
             priority = 0
-            nom = capacite['nom']
-            
-            # Priorité 1: Actions défensives si en danger
-            if danger > 50:
-                if nom in ["Repos du héros", "Bouclier coton"]: priority = 70
-                elif nom == "Contre-attaque": priority = 65
-            
-            # Priorité 2: Actions offensives si l'adversaire est faible
-            if opponent_status == "FAIBLE" or opponent_state['hp'] < 20:
-                if nom in ["Attaque surprise", "Entrainement", "Bipolaire"]: priority = 80
-                elif nom == "Boule de feu": priority = 90 # Très haute priorité pour finir le jeu
-            
-            # Priorité 3: Actions de contrôle et de préparation
-            if nom in ["Cible", "Piratage", "Spores", "Bourrasque"]: priority = 40
-            
-            # Priorité de base pour les buffs simples
-            if nom in ["Entrainement", "Musique de combat"]: priority = max(priority, 30)
+            tags = capacite.get('tags', [])
 
-            # Ajustement : Ne pas utiliser une capacité chère si on est bas en PR
-            if capacite['cout'] > 3 and player_state['pr'] < 6:
-                priority -= 20
+            # =====================================================================
+            # NOUVELLE LOGIQUE DE VÉRIFICATION DES PRÉREQUIS
+            # =====================================================================
+            # Si la capacité applique un statut simple, vérifier si le personnage l'a déjà.
+            status_map = {
+                "Cible": "En chasse", "Attaque surprise": "À l'affût", "Boule de feu": "Incantation",
+                "Petit effort": "Sommeil", "Bouclier coton": "Coton", "Pluie battante": "Parapluie",
+                "Contre-attaque": "Contre", "Souvenir inoubliable": "Cadeau de Noël", "Bourrasque": "Typhon",
+                "Spores": "Champignon", "Monologue ennuyeux": "blablabla", "Vol": "Vol", "Nuisible": "Malicieux",
+                "Gros câlin": "Calin", "Bourdonnement": "Bourdonnement", "Piratage": "Piratage"
+            }
+            if capacite['nom'] in status_map:
+                status_to_add = status_map[capacite['nom']]
+                if status_to_add in char.get("statuts", []):
+                    print(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : statut déjà présent.")
+                    continue # Passe à la capacité suivante, ne la considère même pas.
 
-            print(f"[IA DEBUG - Capacité] Évaluation de {nom}: Priorité {priority}")
+            # Cas spécifique pour "Evolution"
+            if capacite['nom'] == "Evolution":
+                if None not in player_state['inventaire']:
+                    print(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : inventaire plein.")
+                    continue
+
+            # =====================================================================
+            # Évaluation basée sur les tags (inchangée)
+            # =====================================================================
+            if 'heal' in tags or 'defense' in tags:
+                if danger > 50: priority = 80
+            
+            if 'offensif' in tags or 'buff_self' in tags:
+                if danger < 40: priority = 70
+                else: priority = 30
+            
+            if 'direct_damage' in tags:
+                if opponent_status == "FAIBLE": priority = 95
+            
+            if 'debuff' in tags or 'control' in tags:
+                if opponent_state.get('terrain'): priority = 50
+            
+            # Ajout d'une priorité pour les capacités d'invocation
+            if 'summon' in tags:
+                priority = 70
+
+            # Ajustements
+            if capacite['cout'] > player_state['pr'] / 2: priority -= 20
+
+            print(f"[IA DEBUG - Capacité] Évaluation de {capacite['nom']} (Tags: {tags}): Priorité {priority}")
 
             if priority > best_priority:
                 best_priority = priority
-                best_choice = (i, char, capacite)
+                best_choice = (slot, char, capacite)
         
-        if not best_choice:
-            return False
-            
-        i, char, capacite = best_choice
-        player_state['pr'] -= capacite['cout']
-        self.executer_effet_capacite(player_state, char, capacite)
-        print(f"[IA LOG - Capacité] Utilisation intelligente de {capacite['nom']} (Priorité: {best_priority})")
-        return True
-
-    # =====================================================================================
-    # SECTION 3 : EXÉCUTION (MÉTHODES UTILITAIRES)
-    # =====================================================================================
-    
-    def executer_effet_capacite(self, player_state, char, capacite):
-        """Exécute l'effet d'une capacité. Cette méthode reste la même."""
-        nom_capacite = capacite['nom']
+        if best_choice:
+            print(f"[IA LOG - Capacité] Demande d'utilisation de {best_choice[2]['nom']} (Priorité: {best_priority})")
+            return best_choice
         
-        if nom_capacite == "Repos du héros":
-            char['pv'] = min(char['pv'] + 3, char['pv_max'])
-        elif nom_capacite == "Entrainement":
-            char['attaque'] += 3
-        elif nom_capacite == "Bipolaire":
-            char['pv'], char['attaque'] = char['attaque'], char['pv']
-            if char['pv_max'] < char['pv']:
-                char['pv_max'] = char['pv']
-        elif nom_capacite in ["Attaque surprise", "Cible", "Bouclier coton", "Pluie battante", "Contre-attaque", "Souvenir inoubliable", "Boule de feu", "Petit effort", "Bourrasque", "Monologue ennuyeux", "Spores", "Gros câlin", "Vol", "Nuisible"]:
-            status_map = {
-                "Attaque surprise": "À l'affût", "Cible": "En chasse", "Bouclier coton": "Coton",
-                "Pluie battante": "Parapluie", "Contre-attaque": "Contre", "Souvenir inoubliable": "Cadeau de Noël",
-                "Boule de feu": "Incantation", "Petit effort": "Sommeil", "Bourrasque": "Typhon",
-                "Monologue ennuyeux": "blablabla", "Spores": "Champignon", "Gros câlin": "Calin",
-                "Vol": "Vol", "Nuisible": "Malicieux"
-            }
-            status = status_map[nom_capacite]
-            if "statuts" not in char:
-                char["statuts"] = []
-            if status not in char["statuts"]:
-                char["statuts"].append(status)
-        elif nom_capacite == "Piratage":
-            player_state['piratage_actif'] = True
-            if "statuts" not in char:
-                char["statuts"] = []
-            if "Piratage" not in char["statuts"]:
-                char["statuts"].append("Piratage")
+        return None
 
 async def setup(bot):
     """Fonction requise par Discord.py pour charger le cog."""

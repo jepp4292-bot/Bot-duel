@@ -326,7 +326,9 @@ class CombatEngine:
         embed.add_field(name=self.p2_state['member'].display_name, value=p2_info, inline=True)
         
         if self.log:
-            embed.add_field(name="Déroulement du Combat", value="\n".join(self.log), inline=False)
+            # On ne prend que les 12 dernières entrées pour éviter de dépasser la limite de Discord
+            log_display = self.log[-12:]
+            embed.add_field(name="Déroulement du Combat", value="\n".join(log_display), inline=False)
             
         return embed
 

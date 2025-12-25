@@ -773,16 +773,28 @@ class PlayerDashboardView(discord.ui.View):
                     import traceback
                     traceback.print_exc()
                     await interaction.followup.send(f"❌ Erreur Moine: {str(e)}", ephemeral=True)
-            elif capacite['nom'] == "Inséparable":
-                try:
-                    empty_slot = self.player_state['inventaire'].index(None)
-                except ValueError:
-                    self.player_state['pr'] += actual_cost
-                    return await respond("Votre inventaire est plein, impossible de se séparer.")
-                homme = {"nom": "Homme", "pv": 5, "pv_max": 5, "attaque": 5}
-                femme = {"nom": "Femme", "pv": 5, "pv_max": 5, "attaque": 5}
-                self.player_state['inventaire'][slot_index] = homme
-                self.player_state['inventaire'][empty_slot] = femme
+            elif capacite['nom'] == "Inséparable":            
+                empty_slots_indices = [i for i, slot in enumerate(self.player_state['inventaire']) if slot is None]                        
+                homme = {"nom": "Homme", "pv": 5, "pv_max": 5, "attaque": 5}            
+                femme = {"nom": "Femme", "pv": 5, "pv_max": 5, "attaque": 5}                        
+                if slot_index == "terrain":                
+                    # Si le Couple est sur le terrain, il faut 2 places libres dans l'inventaire                
+                    if len(empty_slots_indices) < 2:                    
+                        self.player_state['pr'] += actual_cost # Rembourser le coût                    
+                        return await respond("Il faut 2 places libres dans l'inventaire pour que le Couple puisse se séparer depuis le terrain.")  
+                    # Placer les deux nouveaux dans l'inventaire                
+                    self.player_state['inventaire'][empty_slots_indices[0]] = homme                
+                    self.player_state['inventaire'][empty_slots_indices[1]] = femme                
+                    # Vider le terrain
+                    self.player_state['terrain'] = None                            
+                else: # Le Couple est dans l'inventaire                
+                    # Il faut 1 place libre (en plus de la sienne)                
+                    if len(empty_slots_indices) < 1:                    
+                        self.player_state['pr'] += actual_cost # Rembourser le coût                    
+                        return await respond("Il faut au moins 1 autre place libre dans l'inventaire pour que le Couple puisse se séparer.")           
+                    # Remplacer le Couple par l'Homme, et mettre la Femme dans le premier slot libre               
+                    self.player_state['inventaire'][slot_index] = homme                
+                    self.player_state['inventaire'][empty_slots_indices[0]] = femme           
                 await respond(f"💑 Le **{char['nom']}** se sépare en **Homme** et **Femme** !")
 
             elif capacite['nom'] == "Spores":
@@ -1138,102 +1150,269 @@ class Game1v1ManagerCog(commands.Cog):
         view = PaginationView(interaction, tuto_embeds)
         await interaction.followup.send(embed=tuto_embeds[0], view=view, ephemeral=True)
 
-    # --- FIN DE LA NOUVELLE COMMANDE ---
+    
+  
+    # Dans cogs/game_1v1_manager.py, dans la classe Game1v1ManagerCog
+
+    # Dans cogs/game_1v1_manager.py, à l'intérieur de la classe Game1v1ManagerCog
+
+    async def _execute_ai_ability_effect(self, player_state, opponent_state, slot_index, char, capacite, actual_cost, is_free_cast):
+        """
+        Fonction DÉDIÉE À L'IA qui applique l'effet d'une capacité.
+        C'est un doublon intentionnel de la logique de `use_ability_callback` pour isoler l'IA.
+        """
+        print(f"[IA EFFECT] Application de '{capacite['nom']}' par '{char['nom']}'.")
+
+        # --- GESTION DES PASSIFS ---
+        if "À main nue" in char.get("statuts", []):
+            char["statuts"].remove("À main nue")
+            char['pv_max'] -= 5
+            char['pv'] = min(char['pv'], char['pv_max'])
+            print("[IA PASSIVE] 'À main nue' bonus retiré.")
+
+        # --- LOGIQUE SPÉCIFIQUE À CHAQUE CAPACITÉ (VERSION IA) ---
+        
+        # Capacités qui ajoutent simplement un statut
+        status_map = {
+            "Cible": "En chasse", "Attaque surprise": "À l'affût", "Boule de feu": "Incantation",
+            "Petit effort": "Sommeil", "Bouclier coton": "Coton", "Pluie battante": "Parapluie",
+            "Contre-attaque": "Contre", "Souvenir inoubliable": "Cadeau de Noël", "Bourrasque": "Typhon",
+            "Spores": "Champignon", "Monologue ennuyeux": "blablabla", "Vol": "Vol", "Nuisible": "Malicieux",
+            "Gros câlin": "Calin", "Bourdonnement": "Bourdonnement", "Piratage": "Piratage"
+        }
+        if capacite['nom'] in status_map:
+            status = status_map[capacite['nom']]
+            if "statuts" not in char: char["statuts"] = []
+            if status not in char["statuts"]: char["statuts"].append(status)
+            if capacite['nom'] == "Piratage":
+                player_state['piratage_pending'] = True
+
+        # Capacités avec logique plus complexe
+        elif capacite['nom'] == "Doux foyer":
+            if player_state['terrain']:
+                player_state['terrain']['pv'] = player_state['terrain']['pv_max']
+            for i, ally in enumerate(player_state['inventaire']):
+                is_self = isinstance(slot_index, int) and i == slot_index
+                if ally and not is_self:
+                    ally['pv'] = ally['pv_max']
+
+        elif capacite['nom'] == "Dans les nuages":
+            valid_targets = []
+            if player_state['terrain'] and slot_index != "terrain": valid_targets.append(player_state['terrain'])
+            for i, inv_char in enumerate(player_state['inventaire']):
+                if inv_char and i != slot_index: valid_targets.append(inv_char)
+            if valid_targets:
+                target_char = random.choice(valid_targets)
+                if "statuts" not in target_char: target_char["statuts"] = []
+                target_char["statuts"].append("Flotte")
+
+        elif capacite['nom'] == "Bipolaire":
+            char['pv'], char['attaque'] = char['attaque'], char['pv']
+            if char['pv_max'] < char['pv']: char['pv_max'] = char['pv']
+
+        elif capacite['nom'] == "Repos du héros":
+            char['pv'] = min(char['pv'] + 3, char['pv_max'])
+
+        elif capacite['nom'] == "Musique de combat":
+            for ally in player_state['inventaire']:
+                if ally: ally['attaque'] += 1
+            if player_state['terrain']:
+                player_state['terrain']['attaque'] += 1
+
+        elif capacite['nom'] == "Oeuvre d'art":
+            # L'IA choisit aléatoirement entre les deux formes
+            choice = random.choice(["abstrait", "contemporain"])
+            if "statuts" not in char: char["statuts"] = []
+            if choice == "abstrait":
+                if "Art contemporain" in char["statuts"]: char["statuts"].remove("Art contemporain")
+                if "Art abstrait" not in char["statuts"]: char["statuts"].append("Art abstrait")
+            else:
+                if "Art abstrait" in char["statuts"]: char["statuts"].remove("Art abstrait")
+                if "Art contemporain" not in char["statuts"]: char["statuts"].append("Art contemporain")
+
+        elif capacite['nom'] == "Revêtement":
+            valid_targets = []
+            if player_state['terrain'] and slot_index != "terrain": valid_targets.append(player_state['terrain'])
+            for i, inv_char in enumerate(player_state['inventaire']):
+                if inv_char and i != slot_index: valid_targets.append(inv_char)
+            if valid_targets:
+                target_char = random.choice(valid_targets)
+                if "statuts" not in target_char: target_char["statuts"] = []
+                target_char["statuts"].append("Cape Guerrière")
+                target_char['pv'] += char['pv']
+                target_char['attaque'] += char['attaque']
+                if isinstance(slot_index, int):
+                    player_state['inventaire'][slot_index] = None
+                else: # terrain
+                    player_state['terrain'] = None
+
+        elif capacite['nom'] == "Evolution":
+            try:
+                empty_slot = player_state['inventaire'].index(None)
+                evolution_level = 1
+                if "+" in char['nom']:
+                    try: evolution_level = int(char['nom'].split("+")[1]) + 1
+                    except: pass
+                new_fourmi = {"nom": f"Fourmi chimère+{evolution_level}", "pv": char['pv'] + 1, "pv_max": char['pv_max'] + 1, "attaque": char['attaque'] + 1, "capacite": capacite}
+                player_state['inventaire'][empty_slot] = new_fourmi
+            except ValueError:
+                print("[IA ERROR] Pas de place pour l'évolution de la Fourmi.")
+
+        elif capacite['nom'] == "Garde du corps":
+            if "statuts" not in char: char["statuts"] = []
+            if "Garde du corps" not in char["statuts"]:
+                char["statuts"].append("Garde du corps")
+                char["nb_gardes"] = 1
+            else:
+                char["nb_gardes"] = char.get("nb_gardes", 1) + 1
+
+        elif capacite['nom'] == "Soin rapide":
+            pr_to_use = player_state['pr'] + actual_cost # On rajoute le coût qui a déjà été payé
+            if pr_to_use > 0:
+                hp_gain = pr_to_use * 2
+                player_state['pr'] = 0
+                player_state['hp'] = min(50, player_state['hp'] + hp_gain)
+                char['pv'] -= 1
+                if char['pv'] <= 0 and isinstance(slot_index, int):
+                    player_state['inventaire'][slot_index] = None
+                elif char['pv'] <= 0 and slot_index == "terrain":
+                    player_state['terrain'] = None
+        
+        elif capacite['nom'] == "Entrainement":
+            char['attaque'] += 3
+
+        elif capacite['nom'] == "Esprit robuste":
+            player_state['pr'] += 5
+            if "Fatigue d'invocation" in char.get("statuts", []):
+                char["statuts"].remove("Fatigue d'invocation")
+            if player_state['terrain'] != char:
+                if player_state['terrain']:
+                    player_state['inventaire'][slot_index], player_state['terrain'] = player_state['terrain'], char
+                else:
+                    player_state['inventaire'][slot_index] = None
+                    player_state['terrain'] = char
+            player_state['has_placed_character'] = True
+            player_state['is_ready'] = True # L'IA devient prête immédiatement
+
+        elif capacite['nom'] == "Inséparable":
+            empty_slots_indices = [i for i, slot in enumerate(player_state['inventaire']) if slot is None]
+            homme = {"nom": "Homme", "pv": 5, "pv_max": 5, "attaque": 5}
+            femme = {"nom": "Femme", "pv": 5, "pv_max": 5, "attaque": 5}
+            if slot_index == "terrain" and len(empty_slots_indices) >= 2:
+                player_state['inventaire'][empty_slots_indices[0]] = homme
+                player_state['inventaire'][empty_slots_indices[1]] = femme
+                player_state['terrain'] = None
+            elif isinstance(slot_index, int) and len(empty_slots_indices) >= 1:
+                player_state['inventaire'][slot_index] = homme
+                player_state['inventaire'][empty_slots_indices[0]] = femme
+            else:
+                print("[IA ERROR] Pas assez de place pour la capacité 'Inséparable'.")
+
+        elif capacite['nom'] == "Prière":
+            # L'IA choisit un allié blessé ou avec un statut négatif au hasard
+            valid_targets = []
+            allies = [p for p in player_state['inventaire'] if p] + ([player_state['terrain']] if player_state['terrain'] else [])
+            for ally in allies:
+                if ally and any(s in ally.get("statuts", []) for s in ["Empoisonné", "Malédiction", "Envoûté"]):
+                    valid_targets.append(ally)
+            if valid_targets:
+                target_char = random.choice(valid_targets)
+                negative_statuses = [s for s in target_char.get("statuts", []) if s in ["Empoisonné", "Malédiction", "Envoûté"]]
+                if negative_statuses:
+                    status_to_remove = random.choice(negative_statuses)
+                    target_char["statuts"].remove(status_to_remove)
+                    print(f"[IA EFFECT] Prière a retiré '{status_to_remove}' de '{target_char['nom']}'.")
+
+        # --- GESTION DU PASSIF MAÎTRE DES CAPACITÉS ---
+        if 'passives' in player_state and 'maitre_capacites' in player_state['passives']:
+            if is_free_cast:
+                player_state['ability_usage_counter'] = 0
+                print("[IA PASSIVE] 'Maître des capacités' activé, capacité gratuite.")
+            else:
+                player_state['ability_usage_counter'] = player_state.get('ability_usage_counter', 0) + 1
+                print(f"[IA PASSIVE] Compteur de capacité : {player_state['ability_usage_counter']}/2.")
 
 
-    # ... (le reste de votre code : duel, _start_new_duel, etc.) ...
-    # ... le reste de votre code (duel, _start_new_duel, etc.) ne change pas ...
+# REMPLACEZ COMPLÈTEMENT VOTRE MÉTHODE _handle_ai_preparation_turn
+    # Dans cogs/game_1v1_manager.py
+
+    # Dans cogs/game_1v1_manager.py
 
     async def _handle_ai_preparation_turn(self, player_state, game_state):
-        """
-        Gère le tour de préparation pour l'IA de manière stratégique et adaptative.
-        L'IA analyse l'adversaire, évalue la situation et prend des décisions en conséquence.
-        """
-        # --- ÉTAPE 0 : Initialisation et Analyse ---
-        await asyncio.sleep(random.uniform(2.5, 4.5)) # Simule un temps de réflexion
+        """Gère le tour de préparation de l'IA avec la nouvelle logique de AITrainer."""
+        await asyncio.sleep(random.uniform(2.5, 4.5))
         
-        channel = self.bot.get_channel(game_state['channel_id'])
-        
-        # Récupère l'état de l'adversaire pour l'analyse, c'est la clé de l'intelligence
         ai_player_id = player_state['member'].id
         opponent_id = next((pid for pid in game_state['players'] if pid != ai_player_id), None)
         opponent_state = game_state['players'].get(opponent_id)
 
         if not opponent_state:
-            print("[IA ERROR] Impossible de trouver l'adversaire. L'IA passera son tour.")
+            print("[IA ERROR] Adversaire non trouvé.")
             player_state['is_ready'] = True
-            await self.update_all_dashboards(game_state)
             return
 
         print(f"--- TOUR DE L'IA (Tour {game_state['tour']}) ---")
 
-        # --- ÉTAPE 1 : Logique Spécifique au Tour 1 (Ouverture) ---
-        if game_state['tour'] == 1:
-            print("[IA STRATÉGIE] Phase d'ouverture : Remplir l'inventaire et placer un tank.")
-            # Invoquer autant que possible pour remplir l'inventaire
-            while player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.ai.generer_choix_invocation(player_state)
-                if not choices:
-                    break
-                
-                # Le choix d'invocation est déjà intelligent grâce à la nouvelle méthode
-                char_to_invoke = self.ai.choisir_personnage_invocation(
-                    choices, player_state, opponent_state, game_state
-                )
-                if not char_to_invoke or char_to_invoke['cout'] > player_state['pr']:
-                    continue # S'assure de ne pas invoquer si le coût est trop élevé après un choix intelligent
-                
-                char_data = copy.deepcopy(char_to_invoke)
-                if 'pv_max' not in char_data:
-                    char_data['pv_max'] = char_data['pv']
-                
-                player_state['pr'] -= char_data['cout']
-                empty_slot = player_state['inventaire'].index(None)
-                player_state['inventaire'][empty_slot] = char_data
-                
-            # Placer le meilleur personnage pour commencer (sera défensif grâce à la nouvelle logique)
-            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
-
-        # --- ÉTAPE 2 : Logique pour les tours suivants (Adaptation) ---
-        else:
-            print("[IA STRATÉGIE] Phase d'adaptation.")
-            # ORDRE DE PRIORITÉ DES ACTIONS :
-            # 1. Utiliser une capacité pour préparer le terrain.
-            # 2. Invoquer pour combler les vides.
-            # 3. Placer/Remplacer le personnage sur le terrain pour optimiser le combat.
-
-            # Action 1: Utiliser une capacité de manière intelligente
-            if player_state['pr'] >= 2: # Seuil minimum pour envisager une capacité
-                self.ai.utiliser_capacite_smart(player_state, opponent_state, game_state)
+        # --- STRATÉGIE DYNAMIQUE ---
+        # Priorité 1: Utiliser une capacité décisive
+        chosen_ability_data = self.ai.utiliser_capacite_smart(player_state, opponent_state, game_state)
+        if chosen_ability_data:
+            slot, char, capacite = chosen_ability_data
             
-            # Action 2: Invoquer un personnage si un slot est libre et que les PR le permettent
-            if player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.ai.generer_choix_invocation(player_state)
-                if choices:
-                    char_to_invoke = self.ai.choisir_personnage_invocation(
-                        choices, player_state, opponent_state, game_state
-                    )
-                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
-                        char_data = copy.deepcopy(char_to_invoke)
-                        if 'pv_max' not in char_data:
-                            char_data['pv_max'] = char_data['pv']
-                        
-                        # Ajout de la fatigue d'invocation pour les tours > 1
+            actual_cost = capacite['cout']
+            if 'promotion' in player_state.get('passives', {}):
+                invocation_cost = char.get('cout', 0)
+                if invocation_cost in [6, 7, 8]:
+                    actual_cost = 1
+            
+            is_free_cast = False
+            if ('passives' in player_state and 'maitre_capacites' in player_state['passives'] and
+                player_state.get('ability_usage_counter', 0) == 2):
+                actual_cost = 0
+                is_free_cast = True
+
+            if player_state['pr'] >= actual_cost:
+                player_state['pr'] -= actual_cost
+                print(f"[IA ACTION] L'IA utilise la capacité {capacite['nom']} de {char['nom']} pour {actual_cost} PR.")
+                await self._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
+
+        # Priorité 2: Placer/Remplacer le personnage sur le terrain
+        self.ai.placer_strategiquement(player_state, opponent_state, game_state)
+
+        # Priorité 3: Invoquer pour combler les vides ou améliorer la main
+        if player_state['pr'] > 0 and None in player_state['inventaire']:
+            choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+            if choices:
+                char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
+                if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
+                    char_data = copy.deepcopy(char_to_invoke)
+                    if 'pv_max' not in char_data:
+                        char_data['pv_max'] = char_data['pv']
+                    
+                    # Appliquer le passif "À main nue" à l'invocation
+                    if 'a_main_nue' in player_state.get('passives', {}):
+                        char_data['pv'] += 5
+                        char_data['pv_max'] += 5
+                        # === BLOC CORRIGÉ 1 ===
+                        if "statuts" not in char_data:
+                            char_data["statuts"] = []
+                        char_data["statuts"].append("À main nue")
+                    
+                    if game_state['tour'] > 1:
+                        # === BLOC CORRIGÉ 2 ===
                         if "statuts" not in char_data:
                             char_data["statuts"] = []
                         char_data["statuts"].append("Fatigue d'invocation")
-                        
-                        player_state['pr'] -= char_data['cout']
-                        empty_slot = player_state['inventaire'].index(None)
-                        player_state['inventaire'][empty_slot] = char_data
+                    
+                    player_state['pr'] -= char_data['cout']
+                    empty_slot = player_state['inventaire'].index(None)
+                    player_state['inventaire'][empty_slot] = char_data
+                    print(f"[IA ACTION] Invocation de {char_data['nom']}")
 
-            # Action 3: Placer/Remplacer le personnage sur le terrain de manière optimale
-            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
-
-        # --- ÉTAPE 3 : Finalisation du tour ---
-        player_state['is_ready'] = True
+        # Finalisation
+        if not player_state['is_ready']:
+            player_state['is_ready'] = True
         print("--- FIN DU TOUR DE L'IA ---")
-        await self.update_all_dashboards(game_state)
         
         
     # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
@@ -1273,15 +1452,11 @@ class Game1v1ManagerCog(commands.Cog):
             selected_passives = available_passives
 
         # --- Branche de logique : IA vs Humain ---
-        if player_state.get('is_ai'):                
-            # L'IA choisit selon sa priorité + contexte    
-            if selected_passives:        
-                # Trouver l'adversaire pour le contexte        
-                opponent_id = next((pid for pid in game_state['players']                           
-                                    if pid != player_state['member'].id), None)        
-                opponent_state = game_state['players'][opponent_id] if opponent_id else None                
-                self.ai.choisir_passif(player_state, selected_passives, game_state)                    
-                return
+        if player_state.get('is_ai'):            
+            if selected_passives:                
+                # La nouvelle méthode de l'IA choisit intelligemment               
+                self.ai.choisir_passif(player_state, selected_passives.keys(), game_state)            
+            return # On arrête ici pour l'IA
         
         # Si c'est un humain, on continue avec l'interface visuelle
         member = player_state['member']
@@ -1340,7 +1515,7 @@ class Game1v1ManagerCog(commands.Cog):
 
     # ... (après la méthode check_and_remove_dead_character) ...
 
-    '''@app_commands.command(name="duel_ia", description="Entraînez-vous en défiant une IA.")
+    @app_commands.command(name="duel_ia", description="Entraînez-vous en défiant une IA.")
     async def duel_ia(self, interaction: discord.Interaction):
         await interaction.response.defer()
         if interaction.channel.id in self.active_games:
@@ -1383,7 +1558,7 @@ class Game1v1ManagerCog(commands.Cog):
         # Création de l'objet joueur pour l'IA
         if is_ai_game:
             ai_id = 1 # Un ID simple, car il n'y a pas de vrai utilisateur
-            ai_member_mock = type('obj', (object,), {'display_name': 'IA (Gorille)', 'mention': '**IA (Gorille)**', 'id': ai_id})
+            ai_member_mock = type('obj', (object,), {'display_name': 'IA (Achille)', 'mention': '**IA (Achille) **', 'id': ai_id})
             player2_id = ai_id
             player2_member = ai_member_mock
         else:
