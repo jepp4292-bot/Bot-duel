@@ -1338,8 +1338,10 @@ class Game1v1ManagerCog(commands.Cog):
 
     # Dans cogs/game_1v1_manager.py
 
+        # Dans cogs/game_1v1_manager.py
+
     async def _handle_ai_preparation_turn(self, player_state, game_state):
-        """Gère le tour de préparation de l'IA avec la nouvelle logique de AITrainer."""
+        """Gère le tour de préparation de l'IA avec une logique adaptée au tour de jeu."""
         await asyncio.sleep(random.uniform(2.5, 4.5))
         
         ai_player_id = player_state['member'].id
@@ -1353,67 +1355,96 @@ class Game1v1ManagerCog(commands.Cog):
 
         print(f"--- TOUR DE L'IA (Tour {game_state['tour']}) ---")
 
-        # --- STRATÉGIE DYNAMIQUE ---
-        # Priorité 1: Utiliser une capacité décisive
-        chosen_ability_data = self.ai.utiliser_capacite_smart(player_state, opponent_state, game_state)
-        if chosen_ability_data:
-            slot, char, capacite = chosen_ability_data
+        # ==============================================================================
+        # NOUVELLE LOGIQUE : Stratégie différente selon le tour
+        # ==============================================================================
+
+        if game_state['tour'] == 1:
+            # --- STRATÉGIE SPÉCIALE TOUR 1 : AGRESSIVE ET DIRECTE ---
+            print("[IA STRATÉGIE] Exécution de la stratégie d'ouverture du Tour 1.")
             
-            actual_cost = capacite['cout']
-            if 'promotion' in player_state.get('passives', {}):
-                invocation_cost = char.get('cout', 0)
-                if invocation_cost in [6, 7, 8]:
-                    actual_cost = 1
+            # 1. Invoquer le meilleur personnage possible avec les PR de départ.
+            if player_state['pr'] > 0 and None in player_state['inventaire']:
+                choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                if choices:
+                    char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
+                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
+                        char_data = copy.deepcopy(char_to_invoke)
+                        if 'pv_max' not in char_data:
+                            char_data['pv_max'] = char_data['pv']
+                        
+                        # Pas de "Fatigue d'invocation" au tour 1
+                        
+                        player_state['pr'] -= char_data['cout']
+                        empty_slot = player_state['inventaire'].index(None)
+                        player_state['inventaire'][empty_slot] = char_data
+                        print(f"[IA ACTION T1] Invocation de {char_data['nom']}")
+
+            # 2. Placer immédiatement le personnage invoqué sur le terrain.
+            #    C'est l'étape cruciale qui manquait !
+            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
+
+        else:
+            # --- STRATÉGIE STANDARD (POUR LES TOURS 2 ET PLUS) ---
+            # C'est ta logique existante, qui est parfaite pour le milieu de partie.
+            print("[IA STRATÉGIE] Exécution de la stratégie standard.")
             
-            is_free_cast = False
-            if ('passives' in player_state and 'maitre_capacites' in player_state['passives'] and
-                player_state.get('ability_usage_counter', 0) == 2):
-                actual_cost = 0
-                is_free_cast = True
+            # Priorité 1: Utiliser une capacité décisive
+            chosen_ability_data = self.ai.utiliser_capacite_smart(player_state, opponent_state, game_state)
+            if chosen_ability_data:
+                slot, char, capacite = chosen_ability_data
+                
+                actual_cost = capacite['cout']
+                if 'promotion' in player_state.get('passives', {}):
+                    invocation_cost = char.get('cout', 0)
+                    if invocation_cost in [6, 7, 8]:
+                        actual_cost = 1
+                
+                is_free_cast = False
+                if ('passives' in player_state and 'maitre_capacites' in player_state['passives'] and
+                    player_state.get('ability_usage_counter', 0) == 2):
+                    actual_cost = 0
+                    is_free_cast = True
 
-            if player_state['pr'] >= actual_cost:
-                player_state['pr'] -= actual_cost
-                print(f"[IA ACTION] L'IA utilise la capacité {capacite['nom']} de {char['nom']} pour {actual_cost} PR.")
-                await self._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
+                if player_state['pr'] >= actual_cost:
+                    player_state['pr'] -= actual_cost
+                    print(f"[IA ACTION] L'IA utilise la capacité {capacite['nom']} de {char['nom']} pour {actual_cost} PR.")
+                    await self._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
 
-        # Priorité 2: Placer/Remplacer le personnage sur le terrain
-        self.ai.placer_strategiquement(player_state, opponent_state, game_state)
+            # Priorité 2: Placer/Remplacer le personnage sur le terrain
+            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
 
-        # Priorité 3: Invoquer pour combler les vides ou améliorer la main
-        if player_state['pr'] > 0 and None in player_state['inventaire']:
-            choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
-            if choices:
-                char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
-                if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
-                    char_data = copy.deepcopy(char_to_invoke)
-                    if 'pv_max' not in char_data:
-                        char_data['pv_max'] = char_data['pv']
-                    
-                    # Appliquer le passif "À main nue" à l'invocation
-                    if 'a_main_nue' in player_state.get('passives', {}):
-                        char_data['pv'] += 5
-                        char_data['pv_max'] += 5
-                        # === BLOC CORRIGÉ 1 ===
-                        if "statuts" not in char_data:
-                            char_data["statuts"] = []
-                        char_data["statuts"].append("À main nue")
-                    
-                    if game_state['tour'] > 1:
-                        # === BLOC CORRIGÉ 2 ===
+            # Priorité 3: Invoquer pour combler les vides ou améliorer la main
+            if player_state['pr'] > 0 and None in player_state['inventaire']:
+                choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                if choices:
+                    char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
+                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
+                        char_data = copy.deepcopy(char_to_invoke)
+                        if 'pv_max' not in char_data:
+                            char_data['pv_max'] = char_data['pv']
+                        
+                        if 'a_main_nue' in player_state.get('passives', {}):
+                            char_data['pv'] += 5
+                            char_data['pv_max'] += 5
+                            if "statuts" not in char_data:
+                                char_data["statuts"] = []
+                            char_data["statuts"].append("À main nue")
+                        
+                        # La fatigue ne s'applique qu'à partir du tour 2
                         if "statuts" not in char_data:
                             char_data["statuts"] = []
                         char_data["statuts"].append("Fatigue d'invocation")
-                    
-                    player_state['pr'] -= char_data['cout']
-                    empty_slot = player_state['inventaire'].index(None)
-                    player_state['inventaire'][empty_slot] = char_data
-                    print(f"[IA ACTION] Invocation de {char_data['nom']}")
+                        
+                        player_state['pr'] -= char_data['cout']
+                        empty_slot = player_state['inventaire'].index(None)
+                        player_state['inventaire'][empty_slot] = char_data
+                        print(f"[IA ACTION] Invocation de {char_data['nom']}")
 
-        # Finalisation
+        # Finalisation (commun à tous les tours)
         if not player_state['is_ready']:
             player_state['is_ready'] = True
         print("--- FIN DU TOUR DE L'IA ---")
-        
         
     # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
 
