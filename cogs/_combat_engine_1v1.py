@@ -39,8 +39,8 @@ class CombatEngine:
                     return        
                 self.log.append(f"☠️ **{attacker_char['nom']}** a été vaincu par sa propre attaque !")
                 if "Calin" in attacker_char.get("statuts", []) and defender_char:        
-                    # Appliquer le statut "Envoûté" à l'attaquant                
-                        # Ajouter le statut et sauvegarder l'attaque originale        
+                    if "statuts" not in defender_char:                        
+                        defender_char["statuts"] = []   
                     if "Envoûté" not in defender_char["statuts"]:            
                         defender_char["statuts"].append("Envoûté")            
                         # Réduire l'attaque à 1            
@@ -119,8 +119,8 @@ class CombatEngine:
                     return 
                 self.log.append(f"☠️ **{defender_char['nom']}** a été vaincu !")
                 if "Calin" in defender_char.get("statuts", []) and attacker_char:        
-                    # Appliquer le statut "Envoûté" à l'attaquant                     
-                        # Ajouter le statut et sauvegarder l'attaque originale        
+                    if "statuts" not in attacker_char:                        
+                        attacker_char["statuts"] = []    
                     if "Envoûté" not in attacker_char["statuts"]:            
                         attacker_char["statuts"].append("Envoûté")            
                         # Réduire l'attaque à 1            
