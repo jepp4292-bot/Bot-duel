@@ -169,6 +169,7 @@ class CombatEngine:
             description=f"Voici l'état du jeu de votre adversaire, **{opponent_state['member'].display_name}**, avant cette nouvelle phase de préparation.",
             color=discord.Color.blue()
         )
+        embed.add_field(name="Ses Ressources", value=f"🤔 **PR** : {opponent_state['pr']}", inline=False)
         embed.add_field(name="Son Terrain", value=opponent_terrain_desc, inline=False)
         embed.add_field(name="Son Inventaire", value="\n".join(opponent_inventory_desc), inline=False)
     

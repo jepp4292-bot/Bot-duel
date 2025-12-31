@@ -7,6 +7,7 @@ import copy
 from ._combat_engine_1v1 import CombatEngine
 # Après les autres imports
 from .ai_trainer import AITrainer
+from .ai_strategist import AIStrategist
 # =====================================================================================
 # SECTION 1 : LES VUES DISCORD (INTERFACES GRAPHIQUES)
 # =====================================================================================
@@ -955,6 +956,7 @@ class Game1v1ManagerCog(commands.Cog):
         }
         
         self.ai = AITrainer(self.bot)
+        self.ai_hard = AIStrategist(self.bot)
 
     catalogue = app_commands.Group(name="catalogue", description="Affiche les catalogues du jeu 1v1.")
 
@@ -1332,119 +1334,87 @@ class Game1v1ManagerCog(commands.Cog):
                 player_state['ability_usage_counter'] = player_state.get('ability_usage_counter', 0) + 1
                 print(f"[IA PASSIVE] Compteur de capacité : {player_state['ability_usage_counter']}/2.")
 
-
-# REMPLACEZ COMPLÈTEMENT VOTRE MÉTHODE _handle_ai_preparation_turn
     # Dans cogs/game_1v1_manager.py
-
-    # Dans cogs/game_1v1_manager.py
-
-        # Dans cogs/game_1v1_manager.py
 
     async def _handle_ai_preparation_turn(self, player_state, game_state):
-        """Gère le tour de préparation de l'IA avec une logique adaptée au tour de jeu."""
+        """Aiguilleur qui appelle la bonne IA en fonction de la difficulté."""
         await asyncio.sleep(random.uniform(2.5, 4.5))
         
-        ai_player_id = player_state['member'].id
-        opponent_id = next((pid for pid in game_state['players'] if pid != ai_player_id), None)
-        opponent_state = game_state['players'].get(opponent_id)
-
+        opponent_state = next((p for p_id, p in game_state['players'].items() if p_id != player_state['member'].id), None)
         if not opponent_state:
-            print("[IA ERROR] Adversaire non trouvé.")
+            print("[IA ERROR] Aiguilleur : Adversaire non trouvé.")
             player_state['is_ready'] = True
             return
 
-        print(f"--- TOUR DE L'IA (Tour {game_state['tour']}) ---")
+        difficulty = player_state.get('ai_difficulty', 'easy')
 
-        # ==============================================================================
-        # NOUVELLE LOGIQUE : Stratégie différente selon le tour
-        # ==============================================================================
-
-        if game_state['tour'] == 1:
-            # --- STRATÉGIE SPÉCIALE TOUR 1 : AGRESSIVE ET DIRECTE ---
-            print("[IA STRATÉGIE] Exécution de la stratégie d'ouverture du Tour 1.")
+        if difficulty == 'hard':
+            # --- LOGIQUE POUR L'IA STRATÈGE ---
+            print(f"--- TOUR DE L'IA STRATÈGE (Tour {game_state['tour']}) ---")
             
-            # 1. Invoquer le meilleur personnage possible avec les PR de départ.
-            if player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
-                if choices:
-                    char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
-                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
-                        char_data = copy.deepcopy(char_to_invoke)
-                        if 'pv_max' not in char_data:
-                            char_data['pv_max'] = char_data['pv']
-                        
-                        # Pas de "Fatigue d'invocation" au tour 1
-                        
-                        player_state['pr'] -= char_data['cout']
-                        empty_slot = player_state['inventaire'].index(None)
-                        player_state['inventaire'][empty_slot] = char_data
-                        print(f"[IA ACTION T1] Invocation de {char_data['nom']}")
-
-            # 2. Placer immédiatement le personnage invoqué sur le terrain.
-            #    C'est l'étape cruciale qui manquait !
-            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
-
-        else:
-            # --- STRATÉGIE STANDARD (POUR LES TOURS 2 ET PLUS) ---
-            # C'est ta logique existante, qui est parfaite pour le milieu de partie.
-            print("[IA STRATÉGIE] Exécution de la stratégie standard.")
+            # 1. On demande le plan d'action COMPLET à l'IA
+            planned_actions = self.ai_hard.plan_turn(player_state, opponent_state, game_state)
             
-            # Priorité 1: Utiliser une capacité décisive
-            chosen_ability_data = self.ai.utiliser_capacite_smart(player_state, opponent_state, game_state)
-            if chosen_ability_data:
-                slot, char, capacite = chosen_ability_data
+            # 2. On exécute chaque action du plan, une par une
+            for decision in planned_actions:
+                action = decision.get("action")
+                print(f"[IA STRATÈGE - EXÉCUTION] Action du plan : {action}")
+
+                if action == "loan":
+                    player_state['pr'] += decision['amount']
+                    player_state['dette'] -= decision['amount']
+                    player_state['a_emprunte_ce_tour'] = True
+
+                elif action == "use_ability":
+                    slot, char, capacite = decision['data']
+                    player_state['pr'] -= capacite['cout']
+                    await self._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, capacite['cout'], False)
                 
-                actual_cost = capacite['cout']
-                if 'promotion' in player_state.get('passives', {}):
-                    invocation_cost = char.get('cout', 0)
-                    if invocation_cost in [6, 7, 8]:
-                        actual_cost = 1
-                
-                is_free_cast = False
-                if ('passives' in player_state and 'maitre_capacites' in player_state['passives'] and
-                    player_state.get('ability_usage_counter', 0) == 2):
-                    actual_cost = 0
-                    is_free_cast = True
+                elif action == "place_character":
+                    slot_idx = decision['slot']
+                    char_to_place = player_state['inventaire'][slot_idx]
+                    if player_state['terrain']:
+                        player_state['inventaire'][slot_idx], player_state['terrain'] = player_state['terrain'], char_to_place
+                    else:
+                        player_state['terrain'] = char_to_place
+                        player_state['inventaire'][slot_idx] = None
+                    player_state['has_placed_character'] = True
 
-                if player_state['pr'] >= actual_cost:
-                    player_state['pr'] -= actual_cost
-                    print(f"[IA ACTION] L'IA utilise la capacité {capacite['nom']} de {char['nom']} pour {actual_cost} PR.")
-                    await self._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
-
-            # Priorité 2: Placer/Remplacer le personnage sur le terrain
-            self.ai.placer_strategiquement(player_state, opponent_state, game_state)
-
-            # Priorité 3: Invoquer pour combler les vides ou améliorer la main
-            if player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.ai.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
-                if choices:
-                    char_to_invoke = self.ai.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
-                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
-                        char_data = copy.deepcopy(char_to_invoke)
-                        if 'pv_max' not in char_data:
-                            char_data['pv_max'] = char_data['pv']
-                        
-                        if 'a_main_nue' in player_state.get('passives', {}):
-                            char_data['pv'] += 5
-                            char_data['pv_max'] += 5
-                            if "statuts" not in char_data:
-                                char_data["statuts"] = []
-                            char_data["statuts"].append("À main nue")
-                        
-                        # La fatigue ne s'applique qu'à partir du tour 2
+                elif action == "invoke":
+                    char_data = copy.deepcopy(self.bot.catalogue_personnages_1v1[decision['char_name']])
+                    
+                    # === BLOC DÉFINITIVEMENT CORRIGÉ ===
+                    if 'pv_max' not in char_data:
+                        char_data['pv_max'] = char_data['pv']
+                    
+                    if game_state['tour'] > 1:
                         if "statuts" not in char_data:
                             char_data["statuts"] = []
                         char_data["statuts"].append("Fatigue d'invocation")
-                        
-                        player_state['pr'] -= char_data['cout']
-                        empty_slot = player_state['inventaire'].index(None)
-                        player_state['inventaire'][empty_slot] = char_data
-                        print(f"[IA ACTION] Invocation de {char_data['nom']}")
+                    # === FIN DE LA CORRECTION ===
+                    
+                    player_state['pr'] -= char_data['cout']
+                    player_state['inventaire'][decision['slot']] = char_data
+                
+                elif action == "ready":
+                    break
 
-        # Finalisation (commun à tous les tours)
-        if not player_state['is_ready']:
-            player_state['is_ready'] = True
-        print("--- FIN DU TOUR DE L'IA ---")
+                await asyncio.sleep(1.5)
+
+        else:
+            # --- LOGIQUE POUR L'IA APPRENTI ---
+            await self.ai_easy.execute_turn(self, player_state, opponent_state, game_state)
+
+        # Finalisation
+        player_state['is_ready'] = True
+        print(f"--- FIN DU TOUR DE L'IA ({difficulty.upper()}) ---")
+
+
+    
+
+    # Vous devrez peut-être extraire la logique de votre ancien _handle_ai_preparation_turn
+    # dans une nouvelle méthode dans ai_trainer.py pour que l'appel ci-dessus fonctionne.
+    # Par exemple, dans AITrainer, renommez la méthode en _handle_preparation_turn_logic
         
     # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
 
@@ -1484,9 +1454,14 @@ class Game1v1ManagerCog(commands.Cog):
 
         # --- Branche de logique : IA vs Humain ---
         if player_state.get('is_ai'):            
-            if selected_passives:                
+            if selected_passives:   
+                difficulty = player_state.get('ai_difficulty', 'easy')      
                 # La nouvelle méthode de l'IA choisit intelligemment               
-                self.ai.choisir_passif(player_state, selected_passives.keys(), game_state)            
+                if difficulty == 'hard':                    
+                    # L'IA Stratège choisit son passif                    
+                    self.ai_hard.choisir_passif(player_state, selected_passives.keys(), game_state)                
+                else:                    # L'IA Apprenti choisit son passif                    
+                    self.ai_easy.choisir_passif(player_state, selected_passives.keys(), game_state)    
             return # On arrête ici pour l'IA
         
         # Si c'est un humain, on continue avec l'interface visuelle
@@ -1557,6 +1532,16 @@ class Game1v1ManagerCog(commands.Cog):
         await self._start_new_duel(interaction, player1, None) # On passe None pour l'adversaire'''
 
 
+    '''@app_commands.command(name="duel_ia_hard", description="Défiez l'IA Stratège pour un véritable challenge.")
+    async def duel_ia_hard(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        if interaction.channel.id in self.active_games:
+            return await interaction.followup.send("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
+
+        player1 = interaction.user
+        # On passe un argument pour spécifier le niveau de difficulté
+        await self._start_new_duel(interaction, player1, None, difficulty="hard")'''
+
     # --- Commandes et logique de démarrage ---
     @app_commands.command(name="duel", description="Défie un autre joueur dans un duel stratégique.")
     @app_commands.describe(adversaire="Le joueur que vous voulez défier.")
@@ -1583,13 +1568,15 @@ class Game1v1ManagerCog(commands.Cog):
 
     # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
 
-    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
+    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member,difficulty="easy" ):
         
         is_ai_game = player2 is None
+        
+        ai_display_name = 'IA (Achille Stratège)' if difficulty == "hard" else 'IA (Achille Apprenti)'
         # Création de l'objet joueur pour l'IA
         if is_ai_game:
             ai_id = 1 # Un ID simple, car il n'y a pas de vrai utilisateur
-            ai_member_mock = type('obj', (object,), {'display_name': 'IA (Achille)', 'mention': '**IA (Achille) **', 'id': ai_id})
+            ai_member_mock = type('obj', (object,), {'display_name':ai_display_name , 'mention':f'**{ai_display_name}**', 'id': ai_id})
             player2_id = ai_id
             player2_member = ai_member_mock
         else:
@@ -1601,7 +1588,7 @@ class Game1v1ManagerCog(commands.Cog):
             'players': {
                 player1.id: { 'member': player1, 'hp': 50, 'pr': 8, 'inventaire': [None, None, None], 'terrain': None, 'is_ready': False, 'last_dm_id': None, 'passives': {},'has_placed_character': False,'ability_usage_counter': 0, 'dette': 0,'a_emprunte_ce_tour': False,'piratage_pending': False,'is_ai': False},
                 # --- CORRECTION ICI ---
-                player2_id: { 'member': player2_member, 'hp': 50, 'pr': 8, 'inventaire': [None, None, None], 'terrain': None,'is_ready': False, 'last_dm_id': None, 'passives': {},'has_placed_character': False, 'ability_usage_counter': 0,'dette': 0,'a_emprunte_ce_tour': False,'piratage_pending': False,  'is_ai': is_ai_game}
+                player2_id: { 'member': player2_member, 'hp': 50, 'pr': 8, 'inventaire': [None, None, None], 'terrain': None,'is_ready': False, 'last_dm_id': None, 'passives': {},'has_placed_character': False, 'ability_usage_counter': 0,'dette': 0,'a_emprunte_ce_tour': False,'piratage_pending': False,  'is_ai': is_ai_game,'ai_difficulty': difficulty if is_ai_game else None }
             },
             'phase': 'preparation',
             'tour': 1
@@ -1820,7 +1807,7 @@ class Game1v1ManagerCog(commands.Cog):
                             except discord.Forbidden:
                                 pass
                         
-                        if not p_state.get('is_ai'):
+                        if not opponent_state.get('is_ai'):
                             try:
                                 dm_channel = opponent_state['member'].dm_channel or await opponent_state['member'].create_dm()
                                 await dm_channel.send(f"🐝 Votre **Gros bourdon** a fait perdre 3 PR à {p_state['member'].display_name}!")
@@ -1845,7 +1832,7 @@ class Game1v1ManagerCog(commands.Cog):
                         except discord.Forbidden:
                             pass
                     
-                    if not p_state.get('is_ai'):
+                    if not opponent_state.get('is_ai'):
                         try:
                             dm_channel = opponent_state['member'].dm_channel or await opponent_state['member'].create_dm()
                             await dm_channel.send(f"🐝 Votre **Gros bourdon** a fait perdre 3 PR à {p_state['member'].display_name}!")

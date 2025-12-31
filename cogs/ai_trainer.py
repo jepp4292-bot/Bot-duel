@@ -2,6 +2,7 @@
 # cogs/ia_trainer.py
 
 import random
+import copy
 
 class AITrainer:
     """IA stratégique et adaptative pour les duels 1v1, basée sur des métadonnées (tags)."""
@@ -282,6 +283,96 @@ class AITrainer:
             return best_choice
         
         return None
+    
+    # Dans cogs/ai_trainer.py, à l'intérieur de la classe AITrainer
+
+    # =====================================================================================
+    # SECTION 3 : EXÉCUTION DU TOUR COMPLET
+    # =====================================================================================
+    async def execute_turn(self, manager_cog, player_state, opponent_state, game_state):
+        """
+        Contient toute la logique de décision de l'IA Apprenti pour un tour de préparation.
+        C'est le code qui a été déplacé depuis game_1v1_manager.py.
+        """
+        print(f"[IA APPRENTI - STRATÉGIE] Exécution du tour {game_state['tour']}.")
+
+        if game_state['tour'] == 1:
+            # --- STRATÉGIE SPÉCIALE TOUR 1 : AGRESSIVE ET DIRECTE ---
+            if player_state['pr'] > 0 and None in player_state['inventaire']:
+                choices = self.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                if choices:
+                    char_to_invoke = self.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
+                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
+                        char_data = copy.deepcopy(char_to_invoke)
+                        if 'pv_max' not in char_data:
+                            char_data['pv_max'] = char_data['pv']
+                        
+                        player_state['pr'] -= char_data['cout']
+                        empty_slot = player_state['inventaire'].index(None)
+                        player_state['inventaire'][empty_slot] = char_data
+                        print(f"[IA APPRENTI - ACTION T1] Invocation de {char_data['nom']}")
+
+            self.placer_strategiquement(player_state, opponent_state, game_state)
+
+        else:
+            # --- STRATÉGIE STANDARD (POUR LES TOURS 2 ET PLUS) ---
+            chosen_ability_data = self.utiliser_capacite_smart(player_state, opponent_state, game_state)
+            if chosen_ability_data:
+                slot, char, capacite = chosen_ability_data
+                
+                actual_cost = capacite['cout']
+                # Note : La logique 'promotion' et 'maitre_capacites' est gérée dans le manager,
+                # mais on la garde ici pour une IA autonome si besoin.
+                if 'promotion' in player_state.get('passives', {}):
+                    if char.get('cout', 0) in [6, 7, 8]: actual_cost = 1
+                
+                is_free_cast = False
+                if ('maitre_capacites' in player_state.get('passives', {}) and
+                    player_state.get('ability_usage_counter', 0) == 2):
+                    actual_cost = 0
+                    is_free_cast = True
+
+                if player_state['pr'] >= actual_cost:
+                    player_state['pr'] -= actual_cost
+                    print(f"[IA APPRENTI - ACTION] Utilise la capacité {capacite['nom']} pour {actual_cost} PR.")
+                    # On appelle la méthode du manager en utilisant le paramètre 'manager_cog'
+                    await manager_cog._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
+
+            self.placer_strategiquement(player_state, opponent_state, game_state)
+
+            # Dans cogs/ai_trainer.py, dans la méthode execute_turn
+
+            # ... (après le bloc de placement)
+
+            if player_state['pr'] > 0 and None in player_state['inventaire']:
+                choices = self.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                if choices:
+                    char_to_invoke = self.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
+                    if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
+                        char_data = copy.deepcopy(char_to_invoke)
+                        if 'pv_max' not in char_data:                            
+                            char_data['pv_max'] = char_data['pv']
+                        
+                        # === BLOC CORRIGÉ ===
+                        if 'a_main_nue' in player_state.get('passives', {}):
+                            char_data['pv'] += 5
+                            char_data['pv_max'] += 5
+                            if "statuts" not in char_data:
+                                char_data["statuts"] = []
+                            char_data["statuts"].append("À main nue")
+                        
+                        # La même correction ici pour la fatigue
+                        if game_state['tour'] > 1:
+                            if "statuts" not in char_data:
+                                char_data["statuts"] = []
+                            char_data["statuts"].append("Fatigue d'invocation")
+                        # === FIN DU BLOC CORRIGÉ ===
+                        
+                        player_state['pr'] -= char_data['cout']
+                        empty_slot = player_state['inventaire'].index(None)
+                        player_state['inventaire'][empty_slot] = char_data
+                        print(f"[IA APPRENTI - ACTION] Invocation de {char_data['nom']}")
+
 
 async def setup(bot):
     """Fonction requise par Discord.py pour charger le cog."""
