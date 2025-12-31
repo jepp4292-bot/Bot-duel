@@ -76,7 +76,7 @@ class ReadyView(discord.ui.View):
 # --- Vue pour la Roulette d'Invocation ---
 class InvocationView(discord.ui.View):
     # Dans la classe InvocationView, juste après la ligne super().__init__(timeout=300)
-    def __init__(self, manager_cog, player_state):
+    def __init__(self, manager_cog, player_state,  choices: list):
         super().__init__(timeout=300) # 5 minutes pour choisir
         self.manager_cog = manager_cog
         self.player_state = player_state
@@ -115,30 +115,8 @@ class InvocationView(discord.ui.View):
             "Petit bourdon": "Attaque directe (1 PV, 3 ATQ) - Attaque directement les HP adverses",
             "Fouine": "Voleur (1 PV, 1 ATQ) - Échange sa place avec le personnage adverse"
         }
-
-        # Logique de sélection des 3 personnages
-        player_pr = self.player_state['pr']
-        # 1. Filtrer les personnages que le joueur peut s'offrir
-        available_chars = [char for char in self.manager_cog.bot.catalogue_personnages_1v1.values() if char['cout'] <= player_pr]
         
-        # 2. Grouper par coût pour assurer des coûts différents
-        chars_by_cost = {}
-        for char in available_chars:
-            cost = char['cout']
-            if cost not in chars_by_cost:
-                chars_by_cost[cost] = []
-            chars_by_cost[cost].append(char)
-
-        # 3. Sélectionner 3 coûts différents (si possible)
-        possible_costs = list(chars_by_cost.keys())
-        num_choices = min(3, len(possible_costs))
-        chosen_costs = random.sample(possible_costs, num_choices)
-        
-        # 4. Créer les boutons de choix
-        for cost in chosen_costs:
-            # Choisir un personnage au hasard pour ce coût
-            char_to_offer = random.choice(chars_by_cost[cost])
-            description = self.char_descriptions.get(char_to_offer['nom'], f"{char_to_offer['pv']} PV, {char_to_offer['attaque']} ATQ")
+        for char_to_offer in choices:
             button = discord.ui.Button(
                 label=f"{char_to_offer['nom']} ({char_to_offer['cout']} PR)",
                 custom_id=f"invoke_{char_to_offer['nom']}",
@@ -406,19 +384,17 @@ class PlayerDashboardView(discord.ui.View):
         min_cost = min(char['cout'] for char in self.manager_cog.bot.catalogue_personnages_1v1.values())
         if self.player_state['pr'] < min_cost:
             return await interaction.response.send_message("Vous n'avez pas assez de PR pour invoquer le moindre personnage.", ephemeral=True)
-
-        view = InvocationView(self.manager_cog, self.player_state)
         
-        descriptions = []    
-        for item in view.children:        
-            if isinstance(item, discord.ui.Button) and item.custom_id.startswith("invoke_"):            
-                char_name = item.custom_id.split('_')[1]            
-                desc = view.char_descriptions.get(char_name, "")            
-                descriptions.append(f"**{char_name}**: {desc}")        
-        description_text = "\n".join(descriptions)    
-        message = f"Choisissez un personnage à invoquer :\n\n{description_text}"
-        await interaction.response.send_message(message, view=view, ephemeral=True)
-        await view.wait() # On attend que le joueur choisisse
+        choices = self.manager_cog._generate_invocation_choices(self.player_state)        
+        if not choices:            
+            return await interaction.response.send_message("Aucun personnage n'est disponible pour votre montant de PR.", ephemeral=True)
+
+        view = InvocationView(self.manager_cog, self.player_state, choices)        
+        # === FIN DE LA MODIFICATION ===                
+        descriptions = "\n".join([f"**{c['nom']}**: {view.char_descriptions.get(c['nom'], '')}" for c in choices])        
+        message = f"Choisissez un personnage à invoquer :\n\n{descriptions}"        
+        await interaction.response.send_message(message, view=view, ephemeral=True)        
+        await view.wait()
 
         if view.chosen_char_name:
             char_data = copy.deepcopy(self.manager_cog.bot.catalogue_personnages_1v1[view.chosen_char_name])
@@ -1351,9 +1327,10 @@ class Game1v1ManagerCog(commands.Cog):
         if difficulty == 'hard':
             # --- LOGIQUE POUR L'IA STRATÈGE ---
             print(f"--- TOUR DE L'IA STRATÈGE (Tour {game_state['tour']}) ---")
+            choices = self._generate_invocation_choices(player_state)
             
             # 1. On demande le plan d'action COMPLET à l'IA
-            planned_actions = self.ai_hard.plan_turn(player_state, opponent_state, game_state)
+            planned_actions = self.ai_hard.plan_turn(player_state, opponent_state, game_state, choices)
             
             # 2. On exécute chaque action du plan, une par une
             for decision in planned_actions:
@@ -1520,27 +1497,60 @@ class Game1v1ManagerCog(commands.Cog):
         # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
 
     # ... (après la méthode check_and_remove_dead_character) ...
+    
+    
+    # Dans cogs/game_1v1_manager.py, à l'intérieur de la classe Game1v1ManagerCog
 
-    @app_commands.command(name="duel_ia", description="Entraînez-vous en défiant une IA.")
-    async def duel_ia(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    def _generate_invocation_choices(self, player_state):
+        """
+        Génère une liste de 3 personnages uniques à proposer pour une invocation.
+        C'est la source de vérité unique pour les choix d'invocation, garantissant l'équité.
+        """
+        player_pr = player_state['pr']
+        catalogue = self.bot.catalogue_personnages_1v1
+        
+        # 1. Filtrer les personnages que le joueur peut s'offrir
+        available_chars = [char for char in catalogue.values() if char['cout'] <= player_pr]
+        if not available_chars:
+            return []
+
+        # 2. Grouper par coût pour assurer des coûts différents (logique que tu avais déjà)
+        chars_by_cost = {}
+        for char in available_chars:
+            cost = char['cout']
+            if cost not in chars_by_cost:
+                chars_by_cost[cost] = []
+            chars_by_cost[cost].append(char)
+
+        # 3. Sélectionner jusqu'à 3 coûts différents
+        possible_costs = list(chars_by_cost.keys())
+        num_choices = min(3, len(possible_costs))
+        if num_choices == 0:
+            return []
+        chosen_costs = random.sample(possible_costs, num_choices)
+        
+        # 4. Pour chaque coût, choisir un personnage au hasard
+        final_choices = [random.choice(chars_by_cost[cost]) for cost in chosen_costs]
+        
+        return final_choices
+
+
+    @app_commands.command(name="duel_ia", description="Défiez une IA pour tester vos compétences.")
+    @app_commands.describe(difficulty="Choisissez le niveau de l'IA que vous voulez affronter.")
+    @app_commands.choices(difficulty=[
+        app_commands.Choice(name="Achille Apprenti (Facile)", value="easy"),
+        app_commands.Choice(name="Achille Stratège (Difficile)", value="hard"),
+    ])
+    async def duel_ia(self, interaction: discord.Interaction, difficulty: app_commands.Choice[str]):
         if interaction.channel.id in self.active_games:
-            return await interaction.response.send_message("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
+            await interaction.response.send_message("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
+            return
 
-        player1 = interaction.user
-        # L'IA n'a pas de vrai membre Discord, on va simuler
-        await self._start_new_duel(interaction, player1, None) # On passe None pour l'adversaire'''
+        # On a maintenant la difficulté grâce au choix de l'utilisateur (difficulty.value)
+        # On peut maintenant démarrer le duel avec la bonne information.
+        await self._start_new_duel(interaction, interaction.user, None, difficulty=difficulty.value)
 
-
-    '''@app_commands.command(name="duel_ia_hard", description="Défiez l'IA Stratège pour un véritable challenge.")
-    async def duel_ia_hard(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        if interaction.channel.id in self.active_games:
-            return await interaction.followup.send("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
-
-        player1 = interaction.user
-        # On passe un argument pour spécifier le niveau de difficulté
-        await self._start_new_duel(interaction, player1, None, difficulty="hard")'''
+    # ... (garder la commande /duel contre un autre joueur) ...
 
     # --- Commandes et logique de démarrage ---
     @app_commands.command(name="duel", description="Défie un autre joueur dans un duel stratégique.")
@@ -1568,37 +1578,86 @@ class Game1v1ManagerCog(commands.Cog):
 
     # Dans cogs/game_1v1_manager.py, classe Game1v1ManagerCog
 
-    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member,difficulty="easy" ):
-        
+    # Dans cogs/game_1v1_manager.py
+
+    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member, difficulty="easy"):
+        await interaction.response.defer() # On accuse réception immédiatement
+
         is_ai_game = player2 is None
-        
         ai_display_name = 'IA (Achille Stratège)' if difficulty == "hard" else 'IA (Achille Apprenti)'
-        # Création de l'objet joueur pour l'IA
+        
         if is_ai_game:
-            ai_id = 1 # Un ID simple, car il n'y a pas de vrai utilisateur
-            ai_member_mock = type('obj', (object,), {'display_name':ai_display_name , 'mention':f'**{ai_display_name}**', 'id': ai_id})
+            ai_id = self.bot.user.id # Utiliser l'ID du bot est plus propre
+            ai_member_mock = type('obj', (object,), {'display_name': ai_display_name, 'mention': f'**{ai_display_name}**', 'id': ai_id})
             player2_id = ai_id
             player2_member = ai_member_mock
         else:
             player2_id = player2.id
             player2_member = player2
         
+        # Création du game_state (ta logique est bonne)
         game_state = {
             'channel_id': interaction.channel.id,
             'players': {
-                player1.id: { 'member': player1, 'hp': 50, 'pr': 8, 'inventaire': [None, None, None], 'terrain': None, 'is_ready': False, 'last_dm_id': None, 'passives': {},'has_placed_character': False,'ability_usage_counter': 0, 'dette': 0,'a_emprunte_ce_tour': False,'piratage_pending': False,'is_ai': False},
-                # --- CORRECTION ICI ---
-                player2_id: { 'member': player2_member, 'hp': 50, 'pr': 8, 'inventaire': [None, None, None], 'terrain': None,'is_ready': False, 'last_dm_id': None, 'passives': {},'has_placed_character': False, 'ability_usage_counter': 0,'dette': 0,'a_emprunte_ce_tour': False,'piratage_pending': False,  'is_ai': is_ai_game,'ai_difficulty': difficulty if is_ai_game else None }
+                player1.id: self.create_player_state(player1),
+                player2_id: self.create_player_state(player2_member, is_ai=is_ai_game, ai_difficulty=difficulty if is_ai_game else None, custom_name=ai_display_name if is_ai_game else None)
             },
-            'phase': 'preparation',
-            'tour': 1
+            'tour': 1,
+            'phase': 'preparation'
         }
         self.active_games[interaction.channel.id] = game_state
 
-        # --- CORRECTION ICI ---
+        player_state = game_state['players'][player1.id]
+        ai_state = game_state['players'][player2_id]
+
+        # === BLOC CORRIGÉ : Le "Tour Zéro" Équitable pour l'IA ===
+        # Ce tour préparatoire permet à l'IA d'avoir des cartes dès le début.
+        
+        # 1. On génère les 3 choix d'invocation équitablement avec notre fonction centrale
+        choices = self._generate_invocation_choices(ai_state)
+
+        # 2. On exécute le tour de l'IA correspondante avec ces choix
+        if difficulty == 'easy':
+            # L'IA Apprenti utilise maintenant les choix fournis
+            await self.ai.execute_turn(self, ai_state, player_state, game_state)
+        else: # difficulty == 'hard'
+            # L'IA Stratège doit aussi utiliser les choix fournis pour son plan
+            planned_actions = self.ai_hard.plan_turn(ai_state, player_state, game_state, choices)
+            
+            # On exécute juste la première action du plan (généralement une invocation)
+            if planned_actions:
+                first_action = planned_actions[0]
+                if first_action.get('action') == 'invoke':
+                    char_name = first_action['char_name']
+                    char_data = copy.deepcopy(self.bot.catalogue_personnages_1v1[char_name])
+                    
+                    if 'pv_max' not in char_data:
+                        char_data['pv_max'] = char_data['pv']
+                    
+                    ai_state['pr'] -= char_data['cout']
+                    ai_state['inventaire'][first_action['slot']] = char_data
+        # === FIN DE LA CORRECTION ===
+
         await interaction.followup.send(f"La partie entre {player1.mention} et {player2_member.mention} commence ! La première phase de préparation débute. Vérifiez vos messages privés !")
         
-        asyncio.create_task(self.run_duel_loop(game_state))
+        # Lancer la boucle de jeu
+        self.bot.loop.create_task(self.run_duel_loop(game_state))
+
+    # J'ai aussi ajouté une petite fonction create_player_state pour éviter la répétition
+    def create_player_state(self, member, is_ai=False, ai_difficulty=None, custom_name=None):
+        return {
+            'member': member,
+            'hp': 50, 'pr': 8,
+            'inventaire': [None, None, None],
+            'terrain': None, 'is_ready': False,
+            'last_dm_id': None, 'passives': {},
+            'has_placed_character': False,
+            'ability_usage_counter': 0,
+            'dette': 0, 'a_emprunte_ce_tour': False,
+            'piratage_pending': False, 'is_ai': is_ai,
+            'ai_difficulty': ai_difficulty,
+            'custom_name': custom_name or member.display_name
+        }
 
     # --- Boucle de jeu principale ---
     # cogs/game_1v1_manager.py (dans la classe Game1v1ManagerCog)

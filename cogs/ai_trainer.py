@@ -136,23 +136,7 @@ class AITrainer:
             print(f"[IA LOG - Passif] L'IA a choisi : {best_passive} (Score: {best_score}, Tour {game_state['tour']})")
             return
 
-    def generer_choix_invocation(self, player_state, catalogue):
-        """Génère 3 choix de personnages que l'IA peut s'offrir."""
-        available_chars = [char for char in catalogue.values() if char['cout'] <= player_state['pr']]
-        if not available_chars: return []
-        
-        # On privilégie la diversité des coûts pour avoir plus d'options
-        chars_by_cost = {}
-        for char in available_chars:
-            cost = char['cout']
-            if cost not in chars_by_cost: chars_by_cost[cost] = []
-            chars_by_cost[cost].append(char)
-        
-        possible_costs = list(chars_by_cost.keys())
-        num_choices = min(3, len(possible_costs))
-        chosen_costs = random.sample(possible_costs, num_choices)
-        
-        return [random.choice(chars_by_cost[cost]) for cost in chosen_costs]
+    
 
     def choisir_personnage_invocation(self, choices, player_state, opponent_state, game_state):
         """L'IA choisit le personnage le plus pertinent parmi les 3 options en utilisant le scoring."""
@@ -299,7 +283,7 @@ class AITrainer:
         if game_state['tour'] == 1:
             # --- STRATÉGIE SPÉCIALE TOUR 1 : AGRESSIVE ET DIRECTE ---
             if player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                choices = manager_cog._generate_invocation_choices(player_state)
                 if choices:
                     char_to_invoke = self.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
                     if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
@@ -345,13 +329,12 @@ class AITrainer:
             # ... (après le bloc de placement)
 
             if player_state['pr'] > 0 and None in player_state['inventaire']:
-                choices = self.generer_choix_invocation(player_state, self.bot.catalogue_personnages_1v1)
+                choices = manager_cog._generate_invocation_choices(player_state)
                 if choices:
                     char_to_invoke = self.choisir_personnage_invocation(choices, player_state, opponent_state, game_state)
                     if char_to_invoke and char_to_invoke['cout'] <= player_state['pr']:
                         char_data = copy.deepcopy(char_to_invoke)
-                        if 'pv_max' not in char_data:                            
-                            char_data['pv_max'] = char_data['pv']
+                        if 'pv_max' not in char_data:                            char_data['pv_max'] = char_data['pv']
                         
                         # === BLOC CORRIGÉ ===
                         if 'a_main_nue' in player_state.get('passives', {}):

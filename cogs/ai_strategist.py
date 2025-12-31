@@ -301,7 +301,7 @@ class AIStrategist:
     # Dans cogs/ai_strategist.py
 # REMPLACEZ la méthode plan_turn existante par celle-ci :
 
-    def plan_turn(self, player_state, opponent_state, game_state):
+    def plan_turn(self, player_state, opponent_state, game_state,invocation_choices: list ):
         """
         Analyse la situation et retourne un plan d'action complet pour le tour,
         basé sur une simulation rigoureuse qui respecte les règles du jeu.
@@ -359,15 +359,17 @@ class AIStrategist:
 
             # 3. Évaluer l'invocation d'un personnage
             if None in simulated_state['inventaire'] and simulated_state['pr'] > 0:
-                choices = [char for char in self.bot.catalogue_personnages_1v1.values() if char['cout'] <= simulated_state['pr']]
+                choices = invocation_choices
                 if choices:
-                    best_char_to_invoke = max(choices, key=lambda c: self._score_character_for_plan(c, self.current_plan, context))
-                    invoke_score = self._score_character_for_plan(best_char_to_invoke, self.current_plan, context)
+                    affordable_choices = [c for c in choices if c['cout'] <= simulated_state['pr']]
+                    if affordable_choices:
+                        best_char_to_invoke = max(affordable_choices, key=lambda c: self._score_character_for_plan(c, self.current_plan, context))
+                        invoke_score = self._score_character_for_plan(best_char_to_invoke, self.current_plan, context)
                     
-                    if invoke_score > best_score:
-                        best_score = invoke_score
-                        slot = simulated_state['inventaire'].index(None)
-                        best_action = {"action": "invoke", "char_name": best_char_to_invoke['nom'], "slot": slot}
+                        if invoke_score > best_score:
+                            best_score = invoke_score
+                            slot = simulated_state['inventaire'].index(None)
+                            best_action = {"action": "invoke", "char_name": best_char_to_invoke['nom'], "slot": slot}
 
             # Si une action a été choisie, on l'ajoute au plan et on met à jour l'état simulé
             if best_action:
