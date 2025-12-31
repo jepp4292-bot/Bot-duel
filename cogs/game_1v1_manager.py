@@ -931,7 +931,7 @@ class Game1v1ManagerCog(commands.Cog):
                     "emoji": "💎"            }
         }
         
-        self.ai = AITrainer(self.bot)
+        self.ai_easy = AITrainer(self.bot)
         self.ai_hard = AIStrategist(self.bot)
 
     catalogue = app_commands.Group(name="catalogue", description="Affiche les catalogues du jeu 1v1.")
