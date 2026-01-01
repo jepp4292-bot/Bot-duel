@@ -1580,10 +1580,13 @@ class Game1v1ManagerCog(commands.Cog):
 
     # Dans cogs/game_1v1_manager.py
 
-    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member, difficulty="easy"):
+    async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member =  None, difficulty="easy"):
      # On accuse réception immédiatement
-
+     
+    
         is_ai_game = player2 is None
+        if is_ai_game:            
+            await interaction.response.defer()
         ai_display_name = 'IA (Achille Stratège)' if difficulty == "hard" else 'IA (Achille Apprenti)'
         
         if is_ai_game:
