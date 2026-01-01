@@ -5,8 +5,17 @@ from dotenv import load_dotenv
 import json
 import asyncio
 
+import logging
 
-print("--- TEST DE DÉPLOIEMENT v3.0 - FLASK EST SUPPRIMÉ ---")
+# Configuration du module logging
+logging.basicConfig(
+    level=logging.INFO,  # Affiche les logs de niveau INFO et supérieur (WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    force=True  # Force la reconfiguration si nécessaire
+)
+
+logging.info("--- TEST DE DÉPLOIEMENT v3.0 - FLASK EST SUPPRIMÉ ---")
 # --- CONFIGURATION ---
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -30,25 +39,25 @@ def load_data():
             catalogue_pouvoirs = data.get("catalogue_pouvoirs", {})
             catalogue_equipements = data.get("catalogue_equipements", {})
     except (FileNotFoundError, json.JSONDecodeError):
-        print(f"Avertissement : Fichier de sauvegarde '{SAVE_FILE}' non trouvé ou corrompu. De nouvelles données seront créées.")
+        logging.info(f"Avertissement : Fichier de sauvegarde '{SAVE_FILE}' non trouvé ou corrompu. De nouvelles données seront créées.")
         # Pas besoin de faire plus, les variables sont déjà des dictionnaires vides.
 
     # 3. Essayer de charger le catalogue d'ennemis (de manière indépendante)
     try:
         with open("catalogue_ennemis.json", 'r', encoding='utf-8') as f:
             catalogue_ennemis = json.load(f)
-        print("Clés du catalogue ennemis chargées :", catalogue_ennemis.keys())
+        logging.info("Clés du catalogue ennemis chargées :", catalogue_ennemis.keys())
     except (FileNotFoundError, json.JSONDecodeError):
-        print("ERREUR CRITIQUE : Fichier 'catalogue_ennemis.json' non trouvé ou corrompu. Le catalogue des ennemis sera vide.")
+        logging.info("ERREUR CRITIQUE : Fichier 'catalogue_ennemis.json' non trouvé ou corrompu. Le catalogue des ennemis sera vide.")
         # catalogue_ennemis reste un dictionnaire vide.
         
-    print("Tentative de chargement du fichier 'catalogue_personnages_1v1.json'...")
+    logging.info("Tentative de chargement du fichier 'catalogue_personnages_1v1.json'...")
     try:        
         with open("catalogue_personnages_1v1.json", 'r', encoding='utf-8') as f:            
             catalogue_personnages_1v1 = json.load(f)        
-            print("Clés du catalogue 1v1 chargées :", catalogue_personnages_1v1.keys())    
+            logging.info("Clés du catalogue 1v1 chargées :", catalogue_personnages_1v1.keys())    
     except (FileNotFoundError, json.JSONDecodeError):        
-        print("ERREUR CRITIQUE : Fichier 'catalogue_personnages_1v1.json' non trouvé ou corrompu. Le catalogue sera vide.")        
+        logging.info("ERREUR CRITIQUE : Fichier 'catalogue_personnages_1v1.json' non trouvé ou corrompu. Le catalogue sera vide.")        
         # catalogue_personnages_1v1 reste un dictionnaire vide.
 
     # 4. Retourner les 5 variables, qui sont maintenant garanties d'exister.
@@ -91,16 +100,16 @@ bot.get_user_inventory = get_user_inventory
 # --- ÉVÉNEMENTS DU BOT ---
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} est connecté à Discord !')
-    print("Vérification des combats interrompus...")    
+    logging.info(f'{bot.user.name} est connecté à Discord !')
+    logging.info("Vérification des combats interrompus...")    
     combat_cog = bot.get_cog('CombatCog')    
     if combat_cog:        
         interrupted_combats = combat_cog._load_all_combat_states()        
         if not interrupted_combats:            
-            print("Aucun combat à reprendre.")        
+            logging.info("Aucun combat à reprendre.")        
         else:            
             for channel_id, state in interrupted_combats.items():                
-                print(f"Reprise du combat dans le canal {channel_id}...")
+                logging.info(f"Reprise du combat dans le canal {channel_id}...")
                 # On passe tous les arguments attendus par la fonction, même s'ils sont None,
                 # car la logique de reprise se base uniquement sur resumed_state.
                 asyncio.create_task(combat_cog.lancer_combat_engine(
@@ -113,13 +122,13 @@ async def on_ready():
                     resumed_state=state
                 )) 
     else:        
-        print("ATTENTION : Le Cog 'CombatCog' n'a pas été trouvé. Impossible de reprendre les combats.")
+        logging.info("ATTENTION : Le Cog 'CombatCog' n'a pas été trouvé. Impossible de reprendre les combats.")
     try:
         # La synchronisation se fait ici une fois que tout est chargé
         synced = await bot.tree.sync()
-        print(f"Synchronisé {len(synced)} commande(s)")
+        logging.info(f"Synchronisé {len(synced)} commande(s)")
     except Exception as e:
-        print(e)
+        logging.info(e)
 
 
 # --- LISTE DES COGS À IGNORER AU CHARGEMENT ---
@@ -144,9 +153,9 @@ async def main():
             if filename.endswith('.py') and not filename.startswith('_') and filename not in cogs_desactives:               
                 try:
                     await bot.load_extension(f'cogs.{filename[:-3]}')
-                    print(f"✅ Cog '{filename}' chargé.")
+                    logging.info(f"✅ Cog '{filename}' chargé.")
                 except Exception as e:
-                    print(f"❌ Erreur lors du chargement du cog '{filename}': {e}")
+                    logging.info(f"❌ Erreur lors du chargement du cog '{filename}': {e}")
 
         await bot.start(TOKEN)
         
@@ -208,5 +217,5 @@ if __name__ == "__main__":
         "description": "Chaque fois qu'il quitte le terrain, gagne +1 aux dégâts."}
     
     save_data()    
-    print("Catalogues par défaut vérifiés et sauvegardés.")
+    logging.info("Catalogues par défaut vérifiés et sauvegardés.")
     asyncio.run(main())

@@ -1,6 +1,7 @@
 # cogs/ai_strategist.py
 import random
 import copy
+import logging
 
 class AIStrategist:
     """
@@ -100,7 +101,7 @@ class AIStrategist:
         else: # INCONNU ou ECONOMY
             self.current_plan = "DEVELOPPEMENT"
 
-        print(f"[IA STRATÈGE - PLAN] Nouveau plan : {self.current_plan} (Danger: {context['danger_level']})")
+        logging.info(f"[IA STRATÈGE - PLAN] Nouveau plan : {self.current_plan} (Danger: {context['danger_level']})")
 
     # =====================================================================================
     # PHASE 3 : EXÉCUTION (LE CERVEAU TACTIQUE)
@@ -163,7 +164,7 @@ class AIStrategist:
                 pr_needed = total_cost - player_state['pr']
                 if 0 < pr_needed <= 10 and char['capacite']['nom'] == "Boule de feu": # 15 dégâts
                     if opponent_state['hp'] <= 15:
-                        print("[IA STRATÈGE - PRÊT] Emprunt pour la victoire !")
+                        logging.info("[IA STRATÈGE - PRÊT] Emprunt pour la victoire !")
                         return pr_needed
 
         # Scénario 2 : Emprunter pour survivre
@@ -173,7 +174,7 @@ class AIStrategist:
                 if char and 'heal' in char.get('capacite', {}).get('tags', []):
                     pr_needed = char['capacite']['cout'] - player_state['pr']
                     if 0 < pr_needed <= 10:
-                        print("[IA STRATÈGE - PRÊT] Emprunt pour survivre !")
+                        logging.info("[IA STRATÈGE - PRÊT] Emprunt pour survivre !")
                         return pr_needed
         
         # Scénario 3 : Emprunt de tempo en début de partie
@@ -181,7 +182,7 @@ class AIStrategist:
              # Emprunter pour invoquer un personnage à coût moyen (4-6)
              if any(4 <= char['cout'] <= 6 for char in self.bot.catalogue_personnages_1v1.values()):
                  loan_amount = random.randint(2, 4)
-                 print(f"[IA STRATÈGE - PRÊT] Emprunt de tempo de {loan_amount} PR.")
+                 logging.info(f"[IA STRATÈGE - PRÊT] Emprunt de tempo de {loan_amount} PR.")
                  return loan_amount
 
         return None # Pas de raison d'emprunter
@@ -202,7 +203,7 @@ class AIStrategist:
         best_passive = None
         best_score = -1
 
-        print(f"[IA STRATÈGE - PASSIF] Analyse des choix pour contrer l'archétype : {opponent_archetype}")
+        logging.info(f"[IA STRATÈGE - PASSIF] Analyse des choix pour contrer l'archétype : {opponent_archetype}")
 
         for passive_id in available_passives_ids:
             score = 0
@@ -280,19 +281,19 @@ class AIStrategist:
             else:
                 score = 50 # Score de base pour tout passif non listé.
 
-            print(f"    -> Évaluation de '{passive_id}': Score = {score}")
+            logging.info(f"    -> Évaluation de '{passive_id}': Score = {score}")
             if score > best_score:
                 best_score = score
                 best_passive = passive_id
         
         if best_passive:
             player_state['passives'][best_passive] = True
-            print(f"[IA STRATÈGE - PASSIF] Choix final : **{best_passive}** (Score: {best_score})")
+            logging.info(f"[IA STRATÈGE - PASSIF] Choix final : **{best_passive}** (Score: {best_score})")
         else:
             # Sécurité au cas où aucun passif ne serait disponible ou scorable
             fallback_passive = random.choice(list(available_passives_ids))
             player_state['passives'][fallback_passive] = True
-            print(f"[IA STRATÈGE - PASSIF] AVERTISSEMENT : Aucun score positif, choix aléatoire : **{fallback_passive}**")
+            logging.info(f"[IA STRATÈGE - PASSIF] AVERTISSEMENT : Aucun score positif, choix aléatoire : **{fallback_passive}**")
 
 
     # Dans cogs/ai_strategist.py

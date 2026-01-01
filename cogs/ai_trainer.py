@@ -3,7 +3,7 @@
 
 import random
 import copy
-
+import logging
 class AITrainer:
     """IA stratégique et adaptative pour les duels 1v1, basée sur des métadonnées (tags)."""
     
@@ -133,7 +133,7 @@ class AITrainer:
         
         if best_passive:
             player_state['passives'][best_passive] = True
-            print(f"[IA LOG - Passif] L'IA a choisi : {best_passive} (Score: {best_score}, Tour {game_state['tour']})")
+            logging.info(f"[IA LOG - Passif] L'IA a choisi : {best_passive} (Score: {best_score}, Tour {game_state['tour']})")
             return
 
     
@@ -148,7 +148,7 @@ class AITrainer:
         best_char = max(choices, key=lambda char: self.scorer_personnage(char, player_state, opponent_state, danger))
         
         score = self.scorer_personnage(best_char, player_state, opponent_state, danger)
-        print(f"[IA LOG - Invocation] L'IA a choisi d'invoquer {best_char['nom']} (Score: {score:.2f})")
+        logging.info(f"[IA LOG - Invocation] L'IA a choisi d'invoquer {best_char['nom']} (Score: {score:.2f})")
         return best_char
 
     def placer_strategiquement(self, player_state, opponent_state, game_state):
@@ -171,14 +171,14 @@ class AITrainer:
                 idx = player_state['inventaire'].index(best_char_to_place)
                 player_state['inventaire'][idx] = current_char
                 player_state['terrain'] = best_char_to_place
-                print(f"[IA LOG - Placement] Remplacement : {best_char_to_place['nom']} remplace {current_char['nom']}")
+                logging.info(f"[IA LOG - Placement] Remplacement : {best_char_to_place['nom']} remplace {current_char['nom']}")
                 return True
             return False
         else:
             idx = player_state['inventaire'].index(best_char_to_place)
             player_state['inventaire'][idx] = None
             player_state['terrain'] = best_char_to_place
-            print(f"[IA LOG - Placement] Placement initial : {best_char_to_place['nom']}")
+            logging.info(f"[IA LOG - Placement] Placement initial : {best_char_to_place['nom']}")
             return True
 
     # === AMÉLIORATION MAJEURE : UTILISATION DE CAPACITÉ BASÉE SUR LES TAGS ===
@@ -224,13 +224,13 @@ class AITrainer:
             if capacite['nom'] in status_map:
                 status_to_add = status_map[capacite['nom']]
                 if status_to_add in char.get("statuts", []):
-                    print(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : statut déjà présent.")
+                    logging.info(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : statut déjà présent.")
                     continue # Passe à la capacité suivante, ne la considère même pas.
 
             # Cas spécifique pour "Evolution"
             if capacite['nom'] == "Evolution":
                 if None not in player_state['inventaire']:
-                    print(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : inventaire plein.")
+                    logging.info(f"[IA DEBUG - Capacité] Rejet de {capacite['nom']} : inventaire plein.")
                     continue
 
             # =====================================================================
@@ -256,14 +256,14 @@ class AITrainer:
             # Ajustements
             if capacite['cout'] > player_state['pr'] / 2: priority -= 20
 
-            print(f"[IA DEBUG - Capacité] Évaluation de {capacite['nom']} (Tags: {tags}): Priorité {priority}")
+            logging.info(f"[IA DEBUG - Capacité] Évaluation de {capacite['nom']} (Tags: {tags}): Priorité {priority}")
 
             if priority > best_priority:
                 best_priority = priority
                 best_choice = (slot, char, capacite)
         
         if best_choice:
-            print(f"[IA LOG - Capacité] Demande d'utilisation de {best_choice[2]['nom']} (Priorité: {best_priority})")
+            logging.info(f"[IA LOG - Capacité] Demande d'utilisation de {best_choice[2]['nom']} (Priorité: {best_priority})")
             return best_choice
         
         return None
@@ -278,7 +278,7 @@ class AITrainer:
         Contient toute la logique de décision de l'IA Apprenti pour un tour de préparation.
         C'est le code qui a été déplacé depuis game_1v1_manager.py.
         """
-        print(f"[IA APPRENTI - STRATÉGIE] Exécution du tour {game_state['tour']}.")
+        logging.info(f"[IA APPRENTI - STRATÉGIE] Exécution du tour {game_state['tour']}.")
 
         if game_state['tour'] == 1:
             # --- STRATÉGIE SPÉCIALE TOUR 1 : AGRESSIVE ET DIRECTE ---
@@ -294,7 +294,7 @@ class AITrainer:
                         player_state['pr'] -= char_data['cout']
                         empty_slot = player_state['inventaire'].index(None)
                         player_state['inventaire'][empty_slot] = char_data
-                        print(f"[IA APPRENTI - ACTION T1] Invocation de {char_data['nom']}")
+                        logging.info(f"[IA APPRENTI - ACTION T1] Invocation de {char_data['nom']}")
 
             self.placer_strategiquement(player_state, opponent_state, game_state)
 
@@ -318,7 +318,7 @@ class AITrainer:
 
                 if player_state['pr'] >= actual_cost:
                     player_state['pr'] -= actual_cost
-                    print(f"[IA APPRENTI - ACTION] Utilise la capacité {capacite['nom']} pour {actual_cost} PR.")
+                    logging.info(f"[IA APPRENTI - ACTION] Utilise la capacité {capacite['nom']} pour {actual_cost} PR.")
                     # On appelle la méthode du manager en utilisant le paramètre 'manager_cog'
                     await manager_cog._execute_ai_ability_effect(player_state, opponent_state, slot, char, capacite, actual_cost, is_free_cast)
 
@@ -354,7 +354,7 @@ class AITrainer:
                         player_state['pr'] -= char_data['cout']
                         empty_slot = player_state['inventaire'].index(None)
                         player_state['inventaire'][empty_slot] = char_data
-                        print(f"[IA APPRENTI - ACTION] Invocation de {char_data['nom']}")
+                        logging.info(f"[IA APPRENTI - ACTION] Invocation de {char_data['nom']}")
 
 
 async def setup(bot):

@@ -8,6 +8,7 @@ from ._combat_engine_1v1 import CombatEngine
 # Après les autres imports
 from .ai_trainer import AITrainer
 from .ai_strategist import AIStrategist
+import logging
 # =====================================================================================
 # SECTION 1 : LES VUES DISCORD (INTERFACES GRAPHIQUES)
 # =====================================================================================
@@ -227,15 +228,15 @@ class TestCharacterSelectionView(discord.ui.View):
         
         # ✅ VÉRIFIER D'ABORD SI LE CATALOGUE EXISTE ET N'EST PAS VIDE
         if not hasattr(manager_cog.bot, 'catalogue_personnages_1v1'):
-            print("[ERROR] catalogue_personnages_1v1 n'existe pas!")
+            logging.info("[ERROR] catalogue_personnages_1v1 n'existe pas!")
             return
         
         catalogue = manager_cog.bot.catalogue_personnages_1v1
         if not catalogue:
-            print("[ERROR] catalogue_personnages_1v1 est VIDE!")
+            logging.info("[ERROR] catalogue_personnages_1v1 est VIDE!")
             return
         
-        print(f"[DEBUG] Catalogue contient {len(catalogue)} personnages")
+        logging.info(f"[DEBUG] Catalogue contient {len(catalogue)} personnages")
         
         # Créer un Select dropdown avec tous les personnages
         
@@ -343,7 +344,7 @@ class PlayerDashboardView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction):
         # On attache tous les callbacks à cette seule méthode pour une gestion centralisée
         custom_id = interaction.data['custom_id']
-        print(f"[DEBUG] interaction_check reçu : {custom_id}")  # ← Toujours le premier log!
+        logging.info(f"[DEBUG] interaction_check reçu : {custom_id}")  # ← Toujours le premier log!
         
         
 
@@ -715,7 +716,7 @@ class PlayerDashboardView(discord.ui.View):
             elif capacite['nom'] == "Esprit robuste":
                 # --- ÉTAPE 1 : Retirer la fatigue ---
                 try:
-                    print("yay - avant respond")
+                    logging.info("yay - avant respond")
                     
                     self.player_state['pr'] += 5
                     if "Fatigue d'invocation" in char.get("statuts", []): 
@@ -729,12 +730,12 @@ class PlayerDashboardView(discord.ui.View):
                     self.player_state['has_placed_character'] = True
                     self.player_state['is_ready'] = True
                     
-                    print("yay - prêt d'appeler respond")
+                    logging.info("yay - prêt d'appeler respond")
                     
                     # ✅ C'EST ICI QUE ÇA CRASH
                     await respond(f"🧘 **{char['nom']}** utilise Esprit robuste ! Vous gagnez 5 PR et êtes prêt !")
                     
-                    print("c ok - après respond")
+                    logging.info("c ok - après respond")
                     
                     channel = self.manager_cog.bot.get_channel(self.game_state['channel_id'])
                     if channel:
@@ -746,9 +747,9 @@ class PlayerDashboardView(discord.ui.View):
                         self.game_state['ready_view'].stop()
                         
                 except Exception as e:
-                    print(f"[ERROR MOINE] Exception rencontrée : {type(e).__name__}: {e}")
+                    logging.info(f"[ERROR MOINE] Exception rencontrée : {type(e).__name__}: {e}")
                     import traceback
-                    traceback.print_exc()
+                    traceback.logging.info_exc()
                     await interaction.followup.send(f"❌ Erreur Moine: {str(e)}", ephemeral=True)
             elif capacite['nom'] == "Inséparable":            
                 empty_slots_indices = [i for i, slot in enumerate(self.player_state['inventaire']) if slot is None]                        
@@ -1139,14 +1140,14 @@ class Game1v1ManagerCog(commands.Cog):
         Fonction DÉDIÉE À L'IA qui applique l'effet d'une capacité.
         C'est un doublon intentionnel de la logique de `use_ability_callback` pour isoler l'IA.
         """
-        print(f"[IA EFFECT] Application de '{capacite['nom']}' par '{char['nom']}'.")
+        logging.info(f"[IA EFFECT] Application de '{capacite['nom']}' par '{char['nom']}'.")
 
         # --- GESTION DES PASSIFS ---
         if "À main nue" in char.get("statuts", []):
             char["statuts"].remove("À main nue")
             char['pv_max'] -= 5
             char['pv'] = min(char['pv'], char['pv_max'])
-            print("[IA PASSIVE] 'À main nue' bonus retiré.")
+            logging.info("[IA PASSIVE] 'À main nue' bonus retiré.")
 
         # --- LOGIQUE SPÉCIFIQUE À CHAQUE CAPACITÉ (VERSION IA) ---
         
@@ -1234,7 +1235,7 @@ class Game1v1ManagerCog(commands.Cog):
                 new_fourmi = {"nom": f"Fourmi chimère+{evolution_level}", "pv": char['pv'] + 1, "pv_max": char['pv_max'] + 1, "attaque": char['attaque'] + 1, "capacite": capacite}
                 player_state['inventaire'][empty_slot] = new_fourmi
             except ValueError:
-                print("[IA ERROR] Pas de place pour l'évolution de la Fourmi.")
+                logging.info("[IA ERROR] Pas de place pour l'évolution de la Fourmi.")
 
         elif capacite['nom'] == "Garde du corps":
             if "statuts" not in char: char["statuts"] = []
@@ -1284,7 +1285,7 @@ class Game1v1ManagerCog(commands.Cog):
                 player_state['inventaire'][slot_index] = homme
                 player_state['inventaire'][empty_slots_indices[0]] = femme
             else:
-                print("[IA ERROR] Pas assez de place pour la capacité 'Inséparable'.")
+                logging.info("[IA ERROR] Pas assez de place pour la capacité 'Inséparable'.")
 
         elif capacite['nom'] == "Prière":
             # L'IA choisit un allié blessé ou avec un statut négatif au hasard
@@ -1299,16 +1300,16 @@ class Game1v1ManagerCog(commands.Cog):
                 if negative_statuses:
                     status_to_remove = random.choice(negative_statuses)
                     target_char["statuts"].remove(status_to_remove)
-                    print(f"[IA EFFECT] Prière a retiré '{status_to_remove}' de '{target_char['nom']}'.")
+                    logging.info(f"[IA EFFECT] Prière a retiré '{status_to_remove}' de '{target_char['nom']}'.")
 
         # --- GESTION DU PASSIF MAÎTRE DES CAPACITÉS ---
         if 'passives' in player_state and 'maitre_capacites' in player_state['passives']:
             if is_free_cast:
                 player_state['ability_usage_counter'] = 0
-                print("[IA PASSIVE] 'Maître des capacités' activé, capacité gratuite.")
+                logging.info("[IA PASSIVE] 'Maître des capacités' activé, capacité gratuite.")
             else:
                 player_state['ability_usage_counter'] = player_state.get('ability_usage_counter', 0) + 1
-                print(f"[IA PASSIVE] Compteur de capacité : {player_state['ability_usage_counter']}/2.")
+                logging.info(f"[IA PASSIVE] Compteur de capacité : {player_state['ability_usage_counter']}/2.")
 
     # Dans cogs/game_1v1_manager.py
 
@@ -1318,7 +1319,7 @@ class Game1v1ManagerCog(commands.Cog):
         
         opponent_state = next((p for p_id, p in game_state['players'].items() if p_id != player_state['member'].id), None)
         if not opponent_state:
-            print("[IA ERROR] Aiguilleur : Adversaire non trouvé.")
+            logging.info("[IA ERROR] Aiguilleur : Adversaire non trouvé.")
             player_state['is_ready'] = True
             return
 
@@ -1326,7 +1327,7 @@ class Game1v1ManagerCog(commands.Cog):
 
         if difficulty == 'hard':
             # --- LOGIQUE POUR L'IA STRATÈGE ---
-            print(f"--- TOUR DE L'IA STRATÈGE (Tour {game_state['tour']}) ---")
+            logging.info(f"--- TOUR DE L'IA STRATÈGE (Tour {game_state['tour']}) ---")
             choices = self._generate_invocation_choices(player_state)
             
             # 1. On demande le plan d'action COMPLET à l'IA
@@ -1335,7 +1336,7 @@ class Game1v1ManagerCog(commands.Cog):
             # 2. On exécute chaque action du plan, une par une
             for decision in planned_actions:
                 action = decision.get("action")
-                print(f"[IA STRATÈGE - EXÉCUTION] Action du plan : {action}")
+                logging.info(f"[IA STRATÈGE - EXÉCUTION] Action du plan : {action}")
 
                 if action == "loan":
                     player_state['pr'] += decision['amount']
@@ -1384,7 +1385,7 @@ class Game1v1ManagerCog(commands.Cog):
 
         # Finalisation
         player_state['is_ready'] = True
-        print(f"--- FIN DU TOUR DE L'IA ({difficulty.upper()}) ---")
+        logging.info(f"--- FIN DU TOUR DE L'IA ({difficulty.upper()}) ---")
 
 
     
