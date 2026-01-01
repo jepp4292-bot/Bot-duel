@@ -1581,7 +1581,7 @@ class Game1v1ManagerCog(commands.Cog):
     # Dans cogs/game_1v1_manager.py
 
     async def _start_new_duel(self, interaction: discord.Interaction, player1: discord.Member, player2: discord.Member, difficulty="easy"):
-        await interaction.response.defer() # On accuse réception immédiatement
+     # On accuse réception immédiatement
 
         is_ai_game = player2 is None
         ai_display_name = 'IA (Achille Stratège)' if difficulty == "hard" else 'IA (Achille Apprenti)'
@@ -1619,7 +1619,7 @@ class Game1v1ManagerCog(commands.Cog):
         # 2. On exécute le tour de l'IA correspondante avec ces choix
         if difficulty == 'easy':
             # L'IA Apprenti utilise maintenant les choix fournis
-            await self.ai.execute_turn(self, ai_state, player_state, game_state)
+            await self.ai_easy.execute_turn(self, ai_state, player_state, game_state)
         else: # difficulty == 'hard'
             # L'IA Stratège doit aussi utiliser les choix fournis pour son plan
             planned_actions = self.ai_hard.plan_turn(ai_state, player_state, game_state, choices)
