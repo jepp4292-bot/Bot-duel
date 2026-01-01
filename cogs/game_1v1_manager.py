@@ -1546,7 +1546,7 @@ class Game1v1ManagerCog(commands.Cog):
         if interaction.channel.id in self.active_games:
             await interaction.response.send_message("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
             return
-
+        await interaction.response.defer()
         # On a maintenant la difficulté grâce au choix de l'utilisateur (difficulty.value)
         # On peut maintenant démarrer le duel avec la bonne information.
         await self._start_new_duel(interaction, interaction.user, None, difficulty=difficulty.value)
@@ -1586,8 +1586,7 @@ class Game1v1ManagerCog(commands.Cog):
      
     
         is_ai_game = player2 is None
-        if is_ai_game:            
-            await interaction.response.defer()
+        
         ai_display_name = 'IA (Achille Stratège)' if difficulty == "hard" else 'IA (Achille Apprenti)'
         
         if is_ai_game:
