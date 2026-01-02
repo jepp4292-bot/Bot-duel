@@ -195,7 +195,7 @@ class AITrainer:
             all_chars.append(("terrain", player_state['terrain']))
 
         for slot, char in all_chars:
-            if char and "capacite" in char and player_state['pr'] >= char['capacite']['cout']:
+            if (char and "capacite" in char and player_state['pr'] >= char['capacite']['cout'] and "Malédiction" not in char.get("statuts", [])):
                 usable.append((slot, char, char['capacite']))
         
         if not usable: return None

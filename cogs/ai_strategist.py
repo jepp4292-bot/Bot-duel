@@ -338,7 +338,7 @@ class AIStrategist:
             if simulated_state['terrain']: all_chars_slots.append(("terrain", simulated_state['terrain']))
 
             for slot, char in all_chars_slots:
-                if "capacite" in char and simulated_state['pr'] >= char['capacite']['cout']:
+                if ("capacite" in char and simulated_state['pr'] >= char['capacite']['cout'] and "Malédiction" not in char.get("statuts", [])) :
                     score = self._score_ability_for_plan(char['capacite'], char, self.current_plan, context, simulated_state, opponent_state)
                     if score > best_score:
                         best_score = score
