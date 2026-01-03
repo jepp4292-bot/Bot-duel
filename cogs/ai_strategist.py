@@ -315,6 +315,8 @@ class AIStrategist:
         simulated_state = copy.deepcopy(player_state)
         actions_plan = []
         max_actions = 3
+        
+        used_abilities_in_plan = []
 
         # === CORRECTION : On ajoute un drapeau pour la simulation de placement ===
         simulated_has_placed = False
@@ -338,7 +340,8 @@ class AIStrategist:
             if simulated_state['terrain']: all_chars_slots.append(("terrain", simulated_state['terrain']))
 
             for slot, char in all_chars_slots:
-                if ("capacite" in char and simulated_state['pr'] >= char['capacite']['cout'] and "Malédiction" not in char.get("statuts", [])) :
+                ability_unique_id = f"{slot}_{char['capacite']['nom']}"
+                if ("capacite" in char and simulated_state['pr'] >= char['capacite']['cout'] and "Malédiction" not in char.get("statuts", []) and ability_unique_id not in used_abilities_in_plan ) :
                     score = self._score_ability_for_plan(char['capacite'], char, self.current_plan, context, simulated_state, opponent_state)
                     if score > best_score:
                         best_score = score
@@ -351,6 +354,15 @@ class AIStrategist:
                 if placeable:
                     best_char_to_place = max(placeable, key=lambda c: self._score_character_for_plan(c, self.current_plan, context))
                     placement_score = self._score_character_for_plan(best_char_to_place, self.current_plan, context)
+                    
+                    if not simulated_state['terrain']:                        
+                        # Bonus massif si le terrain est vide pour encourager l'IA à jouer                        
+                        placement_score += 40                     
+                    else:                        
+                        # Bonus plus petit si on remplace un personnage plus faible                        
+                        current_terrain_score = self._score_character_for_plan(simulated_state['terrain'], self.current_plan, context)                        
+                        if placement_score > current_terrain_score:                            
+                            placement_score += 15
                     
                     if placement_score > best_score:
                         if not simulated_state['terrain'] or placement_score > self._score_character_for_plan(simulated_state['terrain'], self.current_plan, context) + 20:
@@ -379,6 +391,8 @@ class AIStrategist:
                 # Mise à jour de la simulation pour la prochaine itération
                 if best_action['action'] == 'use_ability':
                     simulated_state['pr'] -= best_action['data'][2]['cout']
+                    slot, _, capacite = best_action['data']                    
+                    used_abilities_in_plan.append(f"{slot}_{capacite['nom']}")
                 
                 elif best_action['action'] == 'place_character':
                     char_to_place = simulated_state['inventaire'][best_action['slot']]
