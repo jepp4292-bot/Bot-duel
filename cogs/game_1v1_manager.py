@@ -33,6 +33,7 @@ class PassiveSelectionView(discord.ui.View):
             self.add_item(button)
     
     async def passive_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         custom_id = interaction.data['custom_id']
         # Extraire l'ID du passif en supprimant seulement le préfixe "passive_"
         passive_id = custom_id[len("passive_"):]
@@ -43,7 +44,7 @@ class PassiveSelectionView(discord.ui.View):
         # Désactiver les boutons
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(content=f"Vous avez choisi le passif **{passive_name}**!", view=self)
+        await interaction.followup.edit_message(interaction.message.id, content=f"Vous avez choisi le passif **{passive_name}**!", view=self)
         self.stop()
         
 class ReadyView(discord.ui.View):
@@ -54,18 +55,19 @@ class ReadyView(discord.ui.View):
 
     @discord.ui.button(label="Prêt pour le Combat !", style=discord.ButtonStyle.success, custom_id="ready_button")
     async def ready_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         player_id = interaction.user.id
         
         if player_id not in self.game_state['players']:
-            return await interaction.response.send_message("Vous ne participez pas à cette partie.", ephemeral=True)
+            return await interaction.followup.send("Vous ne participez pas à cette partie.", ephemeral=True)
 
         player_state = self.game_state['players'][player_id]
         
         if player_state['is_ready']:
-            return await interaction.response.send_message("Vous êtes déjà prêt.", ephemeral=True)
-
+            return await interaction.followup.send("Vous êtes déjà prêt.", ephemeral=True)
+        
         player_state['is_ready'] = True
-        await interaction.response.send_message(f"**{interaction.user.display_name}** est prêt !", ephemeral=False)
+        await interaction.followup.send(f"**{interaction.user.display_name}** est prêt !", ephemeral=False)
 
         opponent_state = None
         for pid, p_state in self.game_state['players'].items():
@@ -127,6 +129,7 @@ class InvocationView(discord.ui.View):
             self.add_item(button)
 
     async def invoke_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         char_name = interaction.data['custom_id'].split('_')[1]
         self.chosen_char_name = char_name
         self.stop() # Arrête la vue
@@ -134,7 +137,7 @@ class InvocationView(discord.ui.View):
         for item in self.children:
             item.disabled = True
         description = self.char_descriptions.get(char_name, "")    
-        await interaction.response.edit_message(content=f"Vous avez choisi d'invoquer **{char_name}**.\n*{description}*", view=self)
+        await interaction.followup.edit_message(interaction.message.id, content=f"Vous avez choisi d'invoquer **{char_name}**.\n*{description}*", view=self)
         
         
         
@@ -168,12 +171,13 @@ class TargetSelectionView(discord.ui.View):
             self.add_item(select)
 
     async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.chosen_target_id = interaction.data['values'][0]
         self.stop()
         # On désactive le menu pour montrer que le choix est fait
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(content="Cible sélectionnée !", view=self)
+        await interaction.followup.edit_message(interaction.message.id, content="Cible sélectionnée !", view=self)
         
 
 # --- NOUVELLE VUE : Choix de l'Artiste ---
@@ -181,22 +185,24 @@ class ArtisteChoiceView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=180) # 3 minutes pour choisir
         self.choice = None # Sera "abstrait" ou "contemporain"
+        
+    async def _handle_choice(self, interaction: discord.Interaction, choice: str, message: str):        
+        # ✅ RÈGLE D'OR centralisée pour les deux boutons.        
+        await interaction.response.defer()        
+        self.choice = choice        
+        for item in self.children:            
+            item.disabled = True        
+            # ✅ On édite via followup.        
+        await interaction.followup.edit_message(interaction.message.id, content=message, view=self)        
+        self.stop()
 
     @discord.ui.button(label="Art abstrait (Attaque sup.)", style=discord.ButtonStyle.primary, custom_id="art_abstrait")
     async def abstrait_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.choice = "abstrait"
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content="Vous avez choisi l'**Art abstrait** !", view=self)
-        self.stop()
+        await self._handle_choice(interaction, "abstrait", "Vous avez choisi l'**Art abstrait** !")
 
     @discord.ui.button(label="Art contemporain (Soin)", style=discord.ButtonStyle.secondary, custom_id="art_contemporain")
     async def contemporain_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.choice = "contemporain"
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content="Vous avez choisi l'**Art contemporain** !", view=self)
-        self.stop()
+        await self._handle_choice(interaction, "contemporain", "Vous avez choisi l'**Art contemporain** !")
 
     
 
@@ -212,64 +218,13 @@ class EmpruntView(discord.ui.View):
         self.add_item(select)
 
     async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.montant_emprunte = int(interaction.data['values'][0])
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(content=f"Vous avez choisi d'emprunter **{self.montant_emprunte} PR**.", view=self)
+        await interaction.followup.edit_message(interaction.message.id, content=f"Vous avez choisi d'emprunter **{self.montant_emprunte} PR**.", view=self)
         self.stop()
 
-
-# --- VUE TEST : Sélection de personnage du catalogue (TEMPORAIRE) ---
-class TestCharacterSelectionView(discord.ui.View):
-    def __init__(self, manager_cog):
-        super().__init__(timeout=180)
-        self.manager_cog = manager_cog
-        self.chosen_char_name = None
-        
-        # ✅ VÉRIFIER D'ABORD SI LE CATALOGUE EXISTE ET N'EST PAS VIDE
-        if not hasattr(manager_cog.bot, 'catalogue_personnages_1v1'):
-            logging.info("[ERROR] catalogue_personnages_1v1 n'existe pas!")
-            return
-        
-        catalogue = manager_cog.bot.catalogue_personnages_1v1
-        if not catalogue:
-            logging.info("[ERROR] catalogue_personnages_1v1 est VIDE!")
-            return
-        
-        logging.info(f"[DEBUG] Catalogue contient {len(catalogue)} personnages")
-        
-        # Créer un Select dropdown avec tous les personnages
-        
-        for page, start_idx in enumerate([0, 25]):    
-            page_chars = list(catalogue.items())[start_idx:start_idx+25]    
-            if not page_chars:        
-                break
-        
-            options = []
-            for char_name, char_data in page_chars:        
-                options.append(discord.SelectOption(            
-                                                    label=f"{char_name}",            
-                                                    value=char_name        ))
-            
-            
-            # Créer le select
-            select = discord.ui.Select(
-                placeholder=f"Page {page+1}...",
-                options=options,
-                custom_id=f"test_char_select_page_{page}"
-            )
-            select.callback = self.select_callback
-            self.add_item(select)
-    
-    async def select_callback(self, interaction: discord.Interaction):
-        self.chosen_char_name = interaction.data['values'][0]
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(
-            content=f"✅ Test - Personnage sélectionné: **{self.chosen_char_name}**",
-            view=self
-        )
-        self.stop()
         
 # --- Vue Principale de Gestion (Inventaire & Terrain) ---
 class PlayerDashboardView(discord.ui.View):
@@ -379,22 +334,23 @@ class PlayerDashboardView(discord.ui.View):
     
 
     async def invocation_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         slot_index = int(interaction.data['custom_id'].split('_')[1])
         
         # Vérifier si le joueur a assez de PR pour invoquer le personnage le moins cher
         min_cost = min(char['cout'] for char in self.manager_cog.bot.catalogue_personnages_1v1.values())
         if self.player_state['pr'] < min_cost:
-            return await interaction.response.send_message("Vous n'avez pas assez de PR pour invoquer le moindre personnage.", ephemeral=True)
+            return await interaction.followup.send("Vous n'avez pas assez de PR pour invoquer le moindre personnage.", ephemeral=True)
         
         choices = self.manager_cog._generate_invocation_choices(self.player_state)        
         if not choices:            
-            return await interaction.response.send_message("Aucun personnage n'est disponible pour votre montant de PR.", ephemeral=True)
+            return await interaction.followup.send("Aucun personnage n'est disponible pour votre montant de PR.", ephemeral=True)
 
         view = InvocationView(self.manager_cog, self.player_state, choices)        
         # === FIN DE LA MODIFICATION ===                
         descriptions = "\n".join([f"**{c['nom']}**: {view.char_descriptions.get(c['nom'], '')}" for c in choices])        
         message = f"Choisissez un personnage à invoquer :\n\n{descriptions}"        
-        await interaction.response.send_message(message, view=view, ephemeral=True)        
+        await interaction.followup.send(message, view=view, ephemeral=True)       
         await view.wait()
 
         if view.chosen_char_name:
@@ -422,11 +378,12 @@ class PlayerDashboardView(discord.ui.View):
             await self.manager_cog.update_all_dashboards(self.game_state)
 
     async def inv_to_terrain_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         slot_index = int(interaction.data['custom_id'].split('_')[-1])
         char = self.player_state['inventaire'][slot_index]
         
         if "statuts" in char and "Fatigue d'invocation" in char["statuts"]:        
-            return await interaction.response.send_message("Ce personnage vient d'être invoqué et est trop fatigué pour combattre ce tour-ci.", ephemeral=True)
+            return await interaction.followup.send("Ce personnage est trop fatigué pour combattre ce tour-ci.", ephemeral=True)
         if self.player_state['terrain']:
             # On inverse les personnages
             self.player_state['inventaire'][slot_index], self.player_state['terrain'] = self.player_state['terrain'], self.player_state['inventaire'][slot_index]
@@ -436,21 +393,22 @@ class PlayerDashboardView(discord.ui.View):
             self.player_state['inventaire'][slot_index] = None
         
         self.player_state['has_placed_character'] = True
-        await interaction.response.defer() # Accusé de réception
         await self.manager_cog.update_all_dashboards(self.game_state)
         
     async def terrain_to_inv_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         # Chercher un slot vide dans l'inventaire
         try:
             empty_slot = self.player_state['inventaire'].index(None)
             self.player_state['inventaire'][empty_slot] = self.player_state['terrain']
             self.player_state['terrain'] = None
             self.player_state['has_placed_character'] = False
-            await interaction.response.defer()
+        
             await self.manager_cog.update_all_dashboards(self.game_state)
+            await interaction.followup.send("Personnage renvoyé à l'inventaire.", ephemeral=True)
         except ValueError:
             # Si .index(None) échoue, c'est que l'inventaire est plein
-            await interaction.response.send_message("Votre inventaire est plein, impossible de renvoyer le personnage.", ephemeral=True)
+            await interaction.followup.send("Votre inventaire est plein, impossible de renvoyer le personnage.", ephemeral=True)
             
    # Dans la classe PlayerDashboardView
 
@@ -864,22 +822,24 @@ class DuelInvitationView(discord.ui.View):
             await interaction.response.send_message("Vous n'êtes pas la personne défiée.", ephemeral=True)
             return False
         return True
+    
+    async def _handle_response(self, interaction: discord.Interaction, result: bool, message: str):        
+        # ✅ RÈGLE D'OR centralisée pour les deux boutons.        
+        await interaction.response.defer()        
+        self.result = result        
+        self.stop()        
+        for item in self.children:            
+            item.disabled = True        
+        # ✅ On édite via followup.        
+        await interaction.followup.edit_message(interaction.message.id, content=message, view=self)
 
     @discord.ui.button(label="Accepter le Duel", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.result = True
-        self.stop()
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content=f"✅ {self.opponent.mention} a accepté le duel de {self.challenger.mention} !", view=self)
+       await self._handle_response(interaction, True, f"✅ {self.opponent.mention} a accepté le duel de {self.challenger.mention} !")
 
     @discord.ui.button(label="Refuser", style=discord.ButtonStyle.danger)
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.result = False
-        self.stop()
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content=f"❌ {self.opponent.mention} a refusé le duel.", view=self)
+        await self._handle_response(interaction, False, f"❌ {self.opponent.mention} a refusé le duel.")
 
 
 
@@ -995,6 +955,7 @@ class Game1v1ManagerCog(commands.Cog):
 
     @catalogue.command(name="passifs", description="Affiche la liste de tous les passifs du mode 1v1.")
     async def catalogue_passifs(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         embed = discord.Embed(
             title="Catalogue des Passifs",
             description="Voici la liste de tous les passifs disponibles dans le mode 1v1.",
@@ -1014,7 +975,7 @@ class Game1v1ManagerCog(commands.Cog):
                     inline=False
                 )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     # --- FIN DU BLOC À AJOUTER ---
 
@@ -1543,10 +1504,10 @@ class Game1v1ManagerCog(commands.Cog):
         app_commands.Choice(name="Achille Stratège (Difficile)", value="hard"),
     ])
     async def duel_ia(self, interaction: discord.Interaction, difficulty: app_commands.Choice[str]):
-        if interaction.channel.id in self.active_games:
-            await interaction.response.send_message("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
-            return
         await interaction.response.defer()
+        if interaction.channel.id in self.active_games:
+            await interaction.followup.send("Une partie de duel est déjà en cours dans ce salon.", ephemeral=True)
+            return
         # On a maintenant la difficulté grâce au choix de l'utilisateur (difficulty.value)
         # On peut maintenant démarrer le duel avec la bonne information.
         await self._start_new_duel(interaction, interaction.user, None, difficulty=difficulty.value)
@@ -2190,12 +2151,14 @@ class StatusRemovalView(discord.ui.View):
             self.add_item(select)
     
     async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.chosen_status = interaction.data['values'][0]
         self.stop()
         # Désactiver le menu pour montrer que le choix est fait
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(content=f"Vous avez choisi de guérir le statut **{self.chosen_status}**.", view=self)
+        original_message = await interaction.original_response()
+        await original_message.edit(content=f"Vous avez choisi de guérir le statut **{self.chosen_status}**.", view=self)
         
 # --- NOUVELLE VUE : Sélection de Cible pour Piratage ---
 class PiratageTargetView(discord.ui.View):
