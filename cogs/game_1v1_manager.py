@@ -2092,28 +2092,45 @@ class Game1v1ManagerCog(commands.Cog):
         return embed
 
     async def update_player_dashboard(self, player_state, opponent_state, game_state, locked=False,show_opponent=True):
-        """Met à jour le dashboard d'UN SEUL joueur en MP."""
-        if player_state.get('is_ai'):            
-            return # Si c'est l'IA, on n'envoie pas de MP. On arrête tout ici.
-        
-        if player_state.get('is_ready'):            
+        """
+        Met à jour le dashboard d'un joueur en supprimant l'ancien message
+        et en en envoyant un nouveau pour garantir un jeton d'interaction frais.
+        """
+        if player_state.get('is_ai'):
+            return
+
+        if player_state.get('is_ready'):
             locked = True
             
-            
         member = player_state['member']
-        embed = self._create_dashboard_embed(player_state, opponent_state,show_opponent )
+        embed = self._create_dashboard_embed(player_state, opponent_state, show_opponent)
         view = None if locked else PlayerDashboardView(self, player_state, game_state)
         
         try:
             dm_channel = member.dm_channel or await member.create_dm()
-            if player_state['last_dm_id']:
-                old_message = await dm_channel.fetch_message(player_state['last_dm_id'])
-                await old_message.delete()
-        except (discord.NotFound, discord.Forbidden):
-            pass # Le message n'existe plus, pas de problème
+
+            # ✅ LA SOLUTION HYBRIDE : SUPPRIMER L'ANCIEN, PUIS ENVOYER LE NOUVEAU
             
-        new_message = await dm_channel.send(embed=embed, view=view)
-        player_state['last_dm_id'] = new_message.id
+            # 1. On essaie de supprimer l'ancien message s'il existe.
+            if player_state['last_dm_id']:
+                try:
+                    old_message = await dm_channel.fetch_message(player_state['last_dm_id'])
+                    await old_message.delete()
+                except (discord.NotFound, discord.Forbidden):
+                    # Ce n'est pas grave si ça échoue. Le message n'existe peut-être plus.
+                    # L'important est de ne pas bloquer le processus.
+                    pass
+
+            # 2. On envoie le nouveau message, qui aura toujours une interaction valide.
+            new_message = await dm_channel.send(embed=embed, view=view)
+            
+            # 3. On sauvegarde l'ID du NOUVEAU message pour le prochain tour.
+            player_state['last_dm_id'] = new_message.id
+
+        except discord.Forbidden:
+            # Le joueur a bloqué les MPs, on ne peut rien faire.
+            player_state['last_dm_id'] = None
+            pass
 
     async def update_all_dashboards(self, game_state, locked=False):
         """Met à jour les dashboards des DEUX joueurs."""
